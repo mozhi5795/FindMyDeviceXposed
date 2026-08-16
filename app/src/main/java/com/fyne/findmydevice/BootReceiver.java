@@ -1,11 +1,15 @@
 package com.fyne.findmydevice;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Log;
+
+import androidx.core.content.ContextCompat;
 
 /**
  * 开机自启广播接收器
@@ -31,12 +35,27 @@ public class BootReceiver extends BroadcastReceiver {
         }
     }
 
+    private boolean hasLocationPermission(Context context) {
+        return ContextCompat.checkSelfPermission(context,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(context,
+                Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     private void handleBoot(Context context) {
         Log.i(TAG, "系统启动完成，启动 FindMyDevice 守护");
 
         SharedPreferences prefs = ConfigManager.getPreferences(context);
         if (!prefs.getBoolean(ConfigManager.KEY_BOOT_START, true)) {
             Log.i(TAG, "开机自启已禁用");
+            return;
+        }
+
+        // 开机时无法弹权限框，若定位权限未授予则跳过启动（避免闪退）
+        if (!hasLocationPermission(context)) {
+            Log.w(TAG, "定位权限未授予，跳过开机自启（用户需打开 App 授权后生效）");
             return;
         }
 

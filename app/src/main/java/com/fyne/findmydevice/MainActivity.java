@@ -1,19 +1,25 @@
 package com.fyne.findmydevice;
 
+import android.Manifest;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * FindMyDevice 配置界面
@@ -22,6 +28,19 @@ import androidx.appcompat.app.AppCompatActivity;
  * 用于配置开机自启、SMS 远程控制、服务器地址等。
  */
 public class MainActivity extends AppCompatActivity {
+
+    private static final int REQ_PERMISSIONS = 100;
+
+    // 需要动态申请的运行时权限
+    private static final String[] NEEDED_PERMISSIONS = {
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.POST_NOTIFICATIONS, // Android 13+
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+    };
 
     private SharedPreferences prefs;
 
@@ -49,6 +68,9 @@ public class MainActivity extends AppCompatActivity {
 
         initViews();
         loadConfig();
+
+        // 动态申请运行时权限
+        requestNeededPermissions();
     }
 
     private void initViews() {
@@ -105,6 +127,35 @@ public class MainActivity extends AppCompatActivity {
         updateDeviceAdminStatus();
     }
 
+    /**
+     * 动态申请运行时权限（Android 6.0+ 必需）
+     */
+    private void requestNeededPermissions() {
+        List<String> missing = new ArrayList<>();
+        for (String permission : NEEDED_PERMISSIONS) {
+            if (ContextCompat.checkSelfPermission(this, permission)
+                    != PackageManager.PERMISSION_GRANTED) {
+                missing.add(permission);
+            }
+        }
+        if (!missing.isEmpty()) {
+            ActivityCompat.requestPermissions(this,
+                    missing.toArray(new String[0]), REQ_PERMISSIONS);
+        }
+    }
+
+    /**
+     * 检查定位权限是否已授予
+     */
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+                || ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     private void saveConfig() {
         SharedPreferences.Editor editor = prefs.edit();
 
@@ -128,25 +179,19 @@ public class MainActivity extends AppCompatActivity {
 
         editor.apply();
 
-        // 根据配置变化启停服务
+        // 根据配置变化启停服务（先检查定位权限，防止闪退）
         if (chkBootStart.isChecked()) {
-            Intent intent = new Intent(this, LocationService.class);
-            intent.setAction(LocationService.ACTION_START_MONITOR);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent);
+            if (hasLocationPermission()) {
+                startMonitorService();
             } else {
-                startService(intent);
+                Toast.makeText(this, "请先授权定位权限（点击右上角或系统设置）",
+                        Toast.LENGTH_LONG).show();
+                requestNeededPermissions();
             }
         }
 
         if (chkServerPoll.isChecked()) {
-            Intent intent = new Intent(this, LocationService.class);
-            intent.setAction(LocationService.ACTION_START_POLLING);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent);
-            } else {
-                startService(intent);
-            }
+            startPollingService();
         } else {
             Intent intent = new Intent(this, LocationService.class);
             intent.setAction(LocationService.ACTION_STOP_POLLING);
@@ -154,6 +199,26 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Toast.makeText(this, "配置已保存", Toast.LENGTH_SHORT).show();
+    }
+
+    private void startMonitorService() {
+        Intent intent = new Intent(this, LocationService.class);
+        intent.setAction(LocationService.ACTION_START_MONITOR);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
+    }
+
+    private void startPollingService() {
+        Intent intent = new Intent(this, LocationService.class);
+        intent.setAction(LocationService.ACTION_START_POLLING);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
     }
 
     private void activateDeviceAdmin() {
@@ -193,5 +258,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         updateDeviceAdminStatus();
+        // 从系统设置返回时，如果已授权权限，自动启动服务
+        if (prefs.getBoolean(ConfigManager.KEY_BOOT_START, true)
+                && hasLocationPermission()
+                && chkBootStart != null && chkBootStart.isChecked()) {
+            startMonitorService();
+        }
     }
 }

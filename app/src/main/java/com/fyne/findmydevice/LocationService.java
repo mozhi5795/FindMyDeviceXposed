@@ -101,7 +101,7 @@ public class LocationService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null || intent.getAction() == null) {
             Log.i(TAG, "服务重启，恢复监听");
-            startForeground(NOTIFICATION_ID, buildNotification());
+            if (!tryStartForeground()) return START_NOT_STICKY;
             startMonitoring();
             return START_STICKY;
         }
@@ -111,7 +111,7 @@ public class LocationService extends Service {
 
         switch (action) {
             case ACTION_START_MONITOR:
-                startForeground(NOTIFICATION_ID, buildNotification());
+                if (!tryStartForeground()) return START_NOT_STICKY;
                 startMonitoring();
                 break;
 
@@ -123,12 +123,12 @@ public class LocationService extends Service {
 
             case ACTION_GET_LOCATION:
                 String callback = intent.getStringExtra(EXTRA_CALLBACK_NUMBER);
-                startForeground(NOTIFICATION_ID, buildNotification());
+                if (!tryStartForeground()) return START_NOT_STICKY;
                 requestSingleLocation(callback);
                 break;
 
             case ACTION_START_POLLING:
-                startForeground(NOTIFICATION_ID, buildNotification());
+                if (!tryStartForeground()) return START_NOT_STICKY;
                 if (!isPolling) {
                     startPolling();
                 }
@@ -140,6 +140,29 @@ public class LocationService extends Service {
         }
 
         return START_STICKY;
+    }
+
+    /**
+     * 尝试进入前台。若缺少定位权限（Android 14+ location FGS 强制要求），
+     * 捕获 SecurityException 并优雅停止，避免闪退。
+     */
+    private boolean tryStartForeground() {
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification());
+            return true;
+        } catch (SecurityException e) {
+            Log.e(TAG, "无法启动前台服务：缺少定位权限", e);
+            NotificationHelper.showNotification(this,
+                    "定位权限未授予",
+                    "请打开 FindMyDevice 并授权定位权限后再启动",
+                    NotificationHelper.CHANNEL_COMMAND);
+            stopSelf();
+            return false;
+        } catch (Throwable t) {
+            Log.e(TAG, "启动前台服务失败", t);
+            stopSelf();
+            return false;
+        }
     }
 
     @Override
