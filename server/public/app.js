@@ -15,12 +15,18 @@ function getTileUrl() {
     return u || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 }
 
-/** 根据 URL 自动选择子域名（高德用数字 0-3，其他用字母 a-c） */
+/** 根据 URL 自动选择子域名（高德用数字，其他用字母 a-c） */
 function getTileOpts(url) {
     var opts = { attribution: 'Map', maxZoom: 19 };
     if (url.indexOf('{s}') >= 0) {
-        if (url.indexOf('webrd') >= 0 || url.indexOf('autonavi') >= 0) {
-            opts.subdomains = ['0', '1', '2', '3'];
+        // 高德：webrd01/wprd01 等格式用 01/02/03/04；webrd0/wprd0 等格式用 0/1/2/3；通用格式用数字
+        if (url.indexOf('webrd') >= 0 || url.indexOf('wprd') >= 0 || url.indexOf('autonavi') >= 0) {
+            // 判断是两位数字(01)还是一位数字(0)
+            if (url.indexOf('webrd01') >= 0 || url.indexOf('wprd01') >= 0) {
+                opts.subdomains = ['01', '02', '03', '04'];
+            } else {
+                opts.subdomains = ['1', '2', '3', '4'];
+            }
         }
     }
     return opts;
