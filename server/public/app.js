@@ -9,17 +9,28 @@ var POLL_INTERVAL = 5000; // 5秒轮询
 // ---- 地图瓦片设置 ----
 // 默认使用 OpenStreetMap，可在看板右上角 ⚙️ 中修改
 // 高德地图(国内快): https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}
+// 注意：高德用数字子域名 0-3，Leaflet 默认用字母 a-c，代码已自动适配
 function getTileUrl() {
     var u = localStorage.getItem('fmd_tile_url');
     return u || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 }
 
+/** 根据 URL 自动选择子域名（高德用数字 0-3，其他用字母 a-c） */
+function getTileOpts(url) {
+    var opts = { attribution: 'Map', maxZoom: 19 };
+    if (url.indexOf('{s}') >= 0) {
+        if (url.indexOf('webrd') >= 0 || url.indexOf('autonavi') >= 0) {
+            opts.subdomains = ['0', '1', '2', '3'];
+        }
+    }
+    return opts;
+}
+
 // ---- 初始化地图 ----
 function initMap() {
     MAP = L.map('map', { center: [35, 105], zoom: 5, zoomControl: true });
-    L.tileLayer(getTileUrl(), {
-        attribution: 'Map', maxZoom: 19
-    }).addTo(MAP);
+    var url = getTileUrl();
+    L.tileLayer(url, getTileOpts(url)).addTo(MAP);
 }
 
 // ---- 地图设置面板 ----
