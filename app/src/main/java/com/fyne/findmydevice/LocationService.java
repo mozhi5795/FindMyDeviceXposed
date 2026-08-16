@@ -71,6 +71,10 @@ public class LocationService extends Service {
     private String pendingCallbackNumber;
     private Location bestLocation;
 
+    // true: 定位结果用于 HTTP 上报服务器（轮询时无位置主动请求）
+    // false: 定位结果用于 SMS 回复（LOCATE 指令）
+    private boolean pendingReportMode = false;
+
     private boolean isPolling = false;
 
     private final IBinder binder = new LocalBinder();
@@ -211,14 +215,41 @@ public class LocationService extends Service {
         Log.i(TAG, "位置监听已停止");
     }
 
-    // ==================== 单次定位（SMS 响应） ====================
+    // ==================== 单次定位 ====================
 
     private void requestSingleLocation(String callbackNumber) {
         this.pendingCallbackNumber = callbackNumber;
+        this.pendingReportMode = false;
         this.bestLocation = null;
 
-        Log.i(TAG, "单次定位请求，回呼: " + callbackNumber);
+        Log.i(TAG, "单次定位请求（SMS 回复），回呼: " + callbackNumber);
 
+        Location cachedLocation = getCachedLocation();
+        if (cachedLocation != null) {
+            onLocationReceived(cachedLocation);
+            return;
+        }
+        requestFreshLocation();
+    }
+
+    /**
+     * 主动请求一次定位用于 HTTP 上报（服务器看板 LOCATE 或首次上报）
+     */
+    private void requestLocationForReport() {
+        this.pendingCallbackNumber = null;
+        this.pendingReportMode = true;
+
+        Log.i(TAG, "单次定位请求（HTTP 上报）");
+
+        Location cachedLocation = getCachedLocation();
+        if (cachedLocation != null) {
+            onLocationReceived(cachedLocation);
+            return;
+        }
+        requestFreshLocation();
+    }
+
+    private Location getCachedLocation() {
         Location cachedLocation = null;
         try {
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
@@ -231,11 +262,12 @@ public class LocationService extends Service {
 
         // 缓存位置在5分钟内可用
         if (cachedLocation != null && (System.currentTimeMillis() - cachedLocation.getTime() < 5 * 60 * 1000)) {
-            onLocationReceived(cachedLocation);
-            return;
+            return cachedLocation;
         }
+        return null;
+    }
 
-        // 请求新定位
+    private void requestFreshLocation() {
         try {
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER,
@@ -249,28 +281,32 @@ public class LocationService extends Service {
             return;
         }
 
-        // 超时降级：15秒后用缓存或报错
-        final Location fallbackLocation = cachedLocation;
-        if (fallbackLocation != null) {
-            scheduler.schedule(() -> {
-                if (pendingCallbackNumber != null) {
-                    onLocationReceived(fallbackLocation);
-                }
-            }, SINGLE_LOCATION_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } else {
-            scheduler.schedule(() -> {
-                if (pendingCallbackNumber != null) {
-                    sendLocationFailed("定位超时，请确保 GPS 已开启");
-                }
-            }, SINGLE_LOCATION_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        }
+        // 超时降级：15秒后仍未定位成功
+        scheduler.schedule(() -> {
+            if (bestLocation == null && (pendingCallbackNumber != null || pendingReportMode)) {
+                sendLocationFailed("定位超时，请确保 GPS 已开启");
+            }
+        }, SINGLE_LOCATION_TIMEOUT_MS, TimeUnit.MILLISECONDS);
     }
 
     private void onLocationReceived(Location location) {
-        if (location == null || pendingCallbackNumber == null) return;
+        if (location == null) return;
 
         bestLocation = location;
         Log.i(TAG, "获取到位置: " + formatLocation(location));
+
+        try {
+            locationManager.removeUpdates(singleLocationListener);
+        } catch (Throwable ignored) {}
+
+        if (pendingReportMode) {
+            // HTTP 上报到服务器
+            pendingReportMode = false;
+            reportLocationToServer(location);
+            return;
+        }
+
+        if (pendingCallbackNumber == null) return;
 
         String mapsUrl = String.format("https://maps.google.com/maps?q=%.6f,%.6f",
                 location.getLatitude(), location.getLongitude());
@@ -286,13 +322,14 @@ public class LocationService extends Service {
 
         CommandProcessor.sendSms(this, pendingCallbackNumber, message);
         pendingCallbackNumber = null;
-
-        try {
-            locationManager.removeUpdates(singleLocationListener);
-        } catch (Throwable ignored) {}
     }
 
     private void sendLocationFailed(String reason) {
+        Log.w(TAG, "定位失败: " + reason);
+        if (pendingReportMode) {
+            pendingReportMode = false;
+            return;
+        }
         if (pendingCallbackNumber != null) {
             CommandProcessor.sendSms(this, pendingCallbackNumber,
                     "[FindMyDevice] 定位失败: " + reason);
@@ -334,14 +371,26 @@ public class LocationService extends Service {
 
         if (serverUrl == null || serverUrl.isEmpty()) return;
 
-        // 1. 上报位置
+        // 1. 上报位置（无缓存位置时主动请求一次，保证看板首次能拿到数据）
         Location loc = bestLocation;
         if (loc != null) {
             reportLocation(serverUrl, deviceToken, loc);
+        } else {
+            requestLocationForReport();
         }
 
         // 2. 拉取指令
         fetchCommands(serverUrl, deviceToken);
+    }
+
+    /**
+     * 将位置上报到服务器（供单次定位成功后调用）
+     */
+    private void reportLocationToServer(Location location) {
+        String serverUrl = ConfigManager.getServerUrl(this);
+        String deviceToken = ConfigManager.getDeviceToken(this);
+        if (serverUrl == null || serverUrl.isEmpty() || location == null) return;
+        reportLocation(serverUrl, deviceToken, location);
     }
 
     private void reportLocation(String serverUrl, String token, Location loc) {
@@ -436,11 +485,13 @@ public class LocationService extends Service {
         switch (action.toUpperCase()) {
             case "LOCATE":
             case "LOCATION":
-                // 获取位置并报告（不需要 SMS 回复，因为已经通过 polling 上报）
+                // 立即上报当前位置；若暂无位置则主动请求一次
                 if (bestLocation != null) {
                     Log.i(TAG, "服务器指令: 上报当前位置");
+                    reportLocationToServer(bestLocation);
                 } else {
-                    Log.w(TAG, "服务器指令: 暂无位置数据");
+                    Log.i(TAG, "服务器指令: 主动请求定位");
+                    requestLocationForReport();
                 }
                 break;
 

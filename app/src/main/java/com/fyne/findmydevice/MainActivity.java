@@ -101,6 +101,40 @@ public class MainActivity extends AppCompatActivity {
         btnActivateAdmin.setOnClickListener(v -> activateDeviceAdmin());
 
         btnSave.setOnClickListener(v -> saveConfig());
+
+        Button btnHelp = findViewById(R.id.btn_help);
+        btnHelp.setOnClickListener(v -> showHelpDialog());
+    }
+
+    /**
+     * 显示远程指令帮助对话框
+     */
+    private void showHelpDialog() {
+        String help = "📱 SMS 指令（从另一台手机发短信到本机）\n"
+                + "格式: #FMD#指令#参数\n\n"
+                + "#FMD#LOCATE#        获取位置并回复短信\n"
+                + "#FMD#ALARM#         最大音量警报 30 秒\n"
+                + "#FMD#RING#          强制响铃（静音也响）\n"
+                + "#FMD#LOCK#          锁屏（需设备管理员）\n"
+                + "#FMD#WIPE#          恢复出厂设置（危险！需二次确认）\n"
+                + "#FMD#CAMERA#        远程拍照\n"
+                + "#FMD#INFO#          获取设备信息\n"
+                + "#FMD#SILENT#        设为静音\n"
+                + "#FMD#VIBRATE#5#     震动 5 秒\n"
+                + "#FMD#URL#地址       打开网页\n"
+                + "#FMD#BATTERY#       获取电量\n"
+                + "#FMD#HELP#          获取帮助\n\n"
+                + "🌐 Web 看板指令（在浏览器看板上点击）\n\n"
+                + "📍 定位    🔔 警报    📞 响铃\n"
+                + "🔒 锁屏    🔇 静音    📳 震动\n\n"
+                + "自定义: NOTIFY#文字（手机弹通知）\n"
+                + "        OPEN_URL#地址（打开网页）";
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("📖 远程指令帮助")
+                .setMessage(help)
+                .setPositiveButton("知道了", null)
+                .show();
     }
 
     private void loadConfig() {
