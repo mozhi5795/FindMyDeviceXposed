@@ -1,0 +1,282 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* ========== 头部 ========== */
+header {
+    background: #16213e;
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #0f3460;
+}
+
+header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #e94560;
+}
+
+#connection-status {
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: #555;
+    color: #fff;
+}
+
+#connection-status.connected {
+    background: #4CAF50;
+}
+
+#connection-status.disconnected {
+    background: #f44336;
+}
+
+/* ========== 主体布局 ========== */
+main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ========== 侧边栏 ========== */
+#sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: #16213e;
+    padding: 16px;
+    overflow-y: auto;
+    border-right: 1px solid #0f3460;
+}
+
+#sidebar h2 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: #eee;
+}
+
+#sidebar h3 {
+    font-size: 14px;
+    margin: 8px 0;
+    color: #ccc;
+}
+
+#sidebar h4 {
+    font-size: 13px;
+    margin: 10px 0 6px;
+    color: #aaa;
+}
+
+.hint {
+    color: #666;
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 0;
+}
+
+/* 设备卡片 */
+.device-card {
+    background: #1a1a2e;
+    border: 1px solid #0f3460;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.device-card:hover {
+    border-color: #e94560;
+    background: #1f1f3e;
+}
+
+.device-card.selected {
+    border-color: #4CAF50;
+    background: #1a3a2e;
+}
+
+.device-card .device-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+}
+
+.device-card .device-meta {
+    font-size: 12px;
+    color: #888;
+    margin-top: 4px;
+}
+
+.device-card .device-online {
+    color: #4CAF50;
+}
+
+.device-card .device-offline {
+    color: #f44336;
+}
+
+/* 指令按钮 */
+#command-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.cmd-btn {
+    padding: 10px 8px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #fff;
+}
+
+.cmd-btn:hover {
+    opacity: 0.85;
+    transform: scale(1.02);
+}
+
+.cmd-btn:active {
+    transform: scale(0.98);
+}
+
+.cmd-locate { background: #2196F3; }
+.cmd-alarm  { background: #f44336; }
+.cmd-ring   { background: #FF9800; }
+.cmd-lock   { background: #9C27B0; }
+.cmd-silent { background: #607D8B; }
+.cmd-vibrate { background: #795548; }
+
+#custom-command {
+    display: flex;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+#custom-cmd-input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    background: #1a1a2e;
+    color: #eee;
+    font-size: 12px;
+}
+
+#custom-cmd-btn {
+    padding: 8px 16px;
+    background: #e94560;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#cmd-result {
+    font-size: 12px;
+    color: #4CAF50;
+    margin-top: 6px;
+    min-height: 20px;
+}
+
+/* 设备详情 */
+#detail-info {
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.6;
+}
+
+/* ========== 地图区 ========== */
+#map-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+#map {
+    flex: 1;
+    background: #111;
+}
+
+#device-info-bar {
+    background: #16213e;
+    padding: 8px 16px;
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: #aaa;
+    border-top: 1px solid #0f3460;
+}
+
+#device-info-bar span {
+    white-space: nowrap;
+}
+
+/* ========== 底部历史 ========== */
+footer {
+    background: #16213e;
+    padding: 12px 24px;
+    border-top: 1px solid #0f3460;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+footer h3 {
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: #ccc;
+}
+
+#history-list {
+    font-size: 12px;
+    color: #888;
+    line-height: 1.8;
+}
+
+.history-item {
+    display: flex;
+    gap: 16px;
+    padding: 2px 0;
+    border-bottom: 1px solid #0f3460;
+}
+
+.history-item .h-time { color: #666; min-width: 80px; }
+.history-item .h-device { color: #2196F3; min-width: 100px; }
+.history-item .h-action { color: #FF9800; min-width: 60px; }
+.history-item .h-result { color: #4CAF50; }
+
+.history-item .h-result.error { color: #f44336; }
+
+/* ========== 响应式 ========== */
+@media (max-width: 768px) {
+    main {
+        flex-direction: column;
+    }
+    #sidebar {
+        width: 100%;
+        min-width: auto;
+        max-height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid #0f3460;
+    }
+    #command-panel {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+}

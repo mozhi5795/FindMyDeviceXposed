@@ -1,0 +1,32 @@
+name = "findmydevice"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# KV 命名空间 - 存设备位置、Session、密码哈希
+# 部署前先创建:
+#   wrangler kv:namespace create FMD_KV
+# 将输出的 id 填入下方 id 字段
+[[kv_namespaces]]
+binding = "FMD_KV"
+id = ""
+
+# ──────────────────────────────────────
+# 自定义域名（国内访问必须）
+# ──────────────────────────────────────
+# 前提：你的域名 DNS 已托管到 Cloudflare
+# 方法1：在这里配置路由
+routes = [
+  { pattern = "findmy.你的域名.com/*", zone_id = "你的域名zone_id" }
+]
+# zone_id 在 Cloudflare 域名概览页右下方可找到
+#
+# 方法2：部署后在 CF Dashboard 配
+# Workers & Pages → findmydevice → 触发器 → 自定义域名 → 添加域名
+#
+# 配好后手机模块填: https://findmy.你的域名.com
+# ──────────────────────────────────────
+
+# GitHub → Cloudflare 自动部署
+# CF Dashboard → Workers & Pages → 创建 → 连接到 Git
+# 选择本仓库，构建命令留空，根目录填 "server/"
+# 每次 git push 自动部署

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FindMyDevice - 设备查找看板</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+    <header>
+        <h1>🔍 FindMyDevice 远程查找看板</h1>
+        <div id="connection-status">检查中...</div>
+    </header>
+    <main>
+        <aside id="sidebar">
+            <h2>📱 设备列表</h2>
+            <div id="device-list"><p class="hint">等待设备上报数据...</p></div>
+            <div id="device-detail" style="display:none;">
+                <h3 id="detail-token">设备详情</h3>
+                <div id="detail-info"></div>
+                <hr>
+                <h4>📤 发送指令</h4>
+                <div id="command-panel">
+                    <button class="cmd-btn cmd-locate" data-action="LOCATE">📍 定位</button>
+                    <button class="cmd-btn cmd-alarm" data-action="ALARM">🔔 警报</button>
+                    <button class="cmd-btn cmd-ring" data-action="RING">📞 响铃</button>
+                    <button class="cmd-btn cmd-lock" data-action="LOCK">🔒 锁屏</button>
+                    <button class="cmd-btn cmd-silent" data-action="SILENT">🔇 静音</button>
+                    <button class="cmd-btn cmd-vibrate" data-action="VIBRATE">📳 震动</button>
+                </div>
+                <div id="custom-command">
+                    <input type="text" id="custom-cmd-input" placeholder="NOTIFY#你好 / OPEN_URL#... 或 指令#参数" />
+                    <button id="custom-cmd-btn">发送</button>
+                </div>
+                <div id="cmd-result"></div>
+            </div>
+        </aside>
+        <section id="map-section">
+            <div id="map"></div>
+            <div id="device-info-bar">
+                <span id="bar-device">未选择设备</span>
+                <span id="bar-battery">--</span>
+                <span id="bar-location">--</span>
+                <span id="bar-time">--</span>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <h3>📋 指令执行历史</h3>
+        <div id="history-list"><p class="hint">暂无记录</p></div>
+    </footer>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="FindMyDevice 配置"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:padding="12dp" />
+
+        <!-- 设备标识 -->
+        <TextView
+            android:id="@+id/tv_device_token"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="设备标识: loading..."
+            android:padding="8dp"
+            android:textSize="12sp"
+            android:textColor="#666666" />
+
+        <!-- 设备管理员状态 -->
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:text="设备管理员: 检查中..."
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btn_activate_admin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="激活设备管理员" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginVertical="12dp" />
+
+        <!-- 开机自启 -->
+        <CheckBox
+            android:id="@+id/chk_boot_start"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="开机自启（系统启动后自动启动定位服务）"
+            android:checked="true" />
+
+        <!-- SMS 控制 -->
+        <CheckBox
+            android:id="@+id/chk_sms_control"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="启用 SMS 远程控制"
+            android:checked="true"
+            android:paddingBottom="4dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="命令前缀"
+            android:textSize="14sp"
+            android:paddingTop="8dp" />
+
+        <EditText
+            android:id="@+id/et_command_prefix"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="#FMD#"
+            android:hint="#FMD#" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="授权号码（逗号分隔，如 +8613800138000,+8613900139000）"
+            android:textSize="14sp"
+            android:paddingTop="8dp" />
+
+        <EditText
+            android:id="@+id/et_authorized_numbers"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="留空则需勾选下方选项"
+            android:inputType="phone" />
+
+        <CheckBox
+            android:id="@+id/chk_allow_all"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="允许所有号码发送指令（不推荐）"
+            android:paddingBottom="8dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginVertical="12dp" />
+
+        <!-- Web 服务器配置 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Web 看板配置（可选）"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <CheckBox
+            android:id="@+id/chk_server_poll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="启用 Web 看板（定时上报位置 + 轮询指令）" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="服务器地址（如 https://your-server.com 或 http://192.168.1.100:3000）"
+            android:textSize="14sp"
+            android:paddingTop="8dp" />
+
+        <EditText
+            android:id="@+id/et_server_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="http://your-server:3000"
+            android:inputType="textUri"
+            android:enabled="false" />
+
+        <CheckBox
+            android:id="@+id/chk_auto_report"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="每次位置更新时立即上报（否则按轮询间隔上报）" />
+
+        <Button
+            android:id="@+id/btn_save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="保存配置"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="#4CAF50" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="提示：首次使用请在授权号码中添加你的另一台手机号。\nWeb 看板需要自行部署 Node.js 服务器（见项目 README）。"
+            android:textSize="12sp"
+            android:textColor="#999999"
+            android:paddingTop="16dp"
+            android:paddingBottom="32dp" />
+
+    </LinearLayout>
+
+</ScrollView>

@@ -1,0 +1,19 @@
+# Android / Gradle
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+
+# Server
+server/node_modules/
+server/.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+*.swp
+*.swo
