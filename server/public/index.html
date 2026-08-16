@@ -10,7 +10,10 @@
 <body>
     <header>
         <h1>🔍 FindMyDevice 远程查找看板</h1>
-        <div id="connection-status">检查中...</div>
+        <div style="display:flex;align-items:center;gap:12px">
+            <div id="connection-status">检查中...</div>
+            <span onclick="openSettings()" style="cursor:pointer;font-size:18px" title="地图设置">⚙️</span>
+        </div>
     </header>
     <main>
         <aside id="sidebar">
@@ -50,6 +53,26 @@
         <h3>📋 指令执行历史</h3>
         <div id="history-list"><p class="hint">暂无记录</p></div>
     </footer>
+    <!-- 地图设置弹窗 -->
+    <div id="settings-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)closeSettings()">
+        <div style="background:#16213e;border-radius:12px;padding:24px;max-width:500px;width:90%;border:1px solid #0f3460">
+            <h3 style="color:#eee;margin-bottom:16px">🗺️ 地图瓦片设置</h3>
+            <p style="color:#888;font-size:13px;margin-bottom:12px;line-height:1.6">
+                填入瓦片 URL 模板，{s}/{z}/{x}/{y} 会被自动替换。<br>
+                不填则使用默认。<br><br>
+                🔹 高德地图(国内快): <code style="background:#1a1a2e;padding:2px 4px;border-radius:2px;font-size:12px">https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&amp;size=1&amp;scale=1&amp;style=8&amp;x={x}&amp;y={y}&amp;z={z}</code><br>
+                🔹 天地图: 需要申请 key<br>
+                🔹 OSM(国际): <code style="background:#1a1a2e;padding:2px 4px;border-radius:2px;font-size:12px">https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png</code>
+            </p>
+            <input type="text" id="tile-url-input" placeholder="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" style="width:100%;padding:10px;border:1px solid #0f3460;border-radius:6px;background:#1a1a2e;color:#eee;font-size:14px;margin-bottom:12px"/>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button onclick="closeSettings()" style="padding:8px 16px;background:#555;color:#fff;border:none;border-radius:6px;cursor:pointer">取消</button>
+                <button onclick="localStorage.removeItem('fmd_tile_url');document.getElementById('tile-url-input').value='';saveSettings()" style="padding:8px 16px;background:#607D8B;color:#fff;border:none;border-radius:6px;cursor:pointer">恢复默认</button>
+                <button onclick="saveSettings()" style="padding:8px 16px;background:#4CAF50;color:#fff;border:none;border-radius:6px;cursor:pointer">保存</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="/app.js"></script>
 </body>

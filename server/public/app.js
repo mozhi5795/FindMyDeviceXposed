@@ -6,12 +6,39 @@ var DEVICE_MARKERS = {};
 var MAP = null;
 var POLL_INTERVAL = 5000; // 5秒轮询
 
+// ---- 地图瓦片设置 ----
+// 默认使用 OpenStreetMap，可在看板右上角 ⚙️ 中修改
+// 高德地图(国内快): https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}
+function getTileUrl() {
+    var u = localStorage.getItem('fmd_tile_url');
+    return u || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+}
+
 // ---- 初始化地图 ----
 function initMap() {
     MAP = L.map('map', { center: [35, 105], zoom: 5, zoomControl: true });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap', maxZoom: 19
+    L.tileLayer(getTileUrl(), {
+        attribution: 'Map', maxZoom: 19
     }).addTo(MAP);
+}
+
+// ---- 地图设置面板 ----
+function openSettings() {
+    document.getElementById('settings-modal').style.display = 'flex';
+    document.getElementById('tile-url-input').value = getTileUrl();
+}
+function saveSettings() {
+    var v = document.getElementById('tile-url-input').value;
+    if (v) {
+        localStorage.setItem('fmd_tile_url', v);
+        MAP.remove();
+        document.getElementById('map').innerHTML = '';
+        initMap();
+    }
+    document.getElementById('settings-modal').style.display = 'none';
+}
+function closeSettings() {
+    document.getElementById('settings-modal').style.display = 'none';
 }
 
 // ---- 状态指示 ----
