@@ -23,7 +23,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.FindMyDevice"
-        tools:targetApi="34">
+        tools:targetApi="36">
 
         <!-- Xposed 模块元数据（LSPosed 识别） -->
         <meta-data
@@ -82,7 +82,7 @@
 
         <!-- 设备管理员（锁屏/WIPE 需要） -->
         <receiver
-            android:name=".DeviceAdminReceiver"
+            android:name=".FmdDeviceAdminReceiver"
             android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data

@@ -224,7 +224,7 @@ public class CommandProcessor {
     private void handleLock() {
         DevicePolicyManager dpm = (DevicePolicyManager)
                 context.getSystemService(Context.DEVICE_POLICY_SERVICE);
-        ComponentName admin = new ComponentName(context, DeviceAdminReceiver.class);
+        ComponentName admin = new ComponentName(context, FmdDeviceAdminReceiver.class);
 
         if (dpm != null && dpm.isAdminActive(admin)) {
             dpm.lockNow();
@@ -247,7 +247,7 @@ public class CommandProcessor {
     private void confirmWipe() {
         DevicePolicyManager dpm = (DevicePolicyManager)
                 context.getSystemService(Context.DEVICE_POLICY_SERVICE);
-        ComponentName admin = new ComponentName(context, DeviceAdminReceiver.class);
+        ComponentName admin = new ComponentName(context, FmdDeviceAdminReceiver.class);
 
         if (dpm != null && dpm.isAdminActive(admin)) {
             dpm.wipeData(DevicePolicyManager.WIPE_EXTERNAL_STORAGE);

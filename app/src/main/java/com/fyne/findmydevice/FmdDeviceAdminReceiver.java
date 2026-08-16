@@ -4,14 +4,13 @@ import android.app.admin.DeviceAdminReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
-import android.widget.Toast;
 
 /**
  * 设备管理员接收器
  * 用于远程锁屏和清除数据功能
  * 需要在设置中激活设备管理员权限
  */
-public class DeviceAdminReceiver extends DeviceAdminReceiver {
+public class FmdDeviceAdminReceiver extends DeviceAdminReceiver {
 
     private static final String TAG = "FindMyDevice_Admin";
 

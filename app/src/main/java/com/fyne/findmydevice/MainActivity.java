@@ -157,7 +157,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void activateDeviceAdmin() {
-        ComponentName admin = new ComponentName(this, DeviceAdminReceiver.class);
+        ComponentName admin = new ComponentName(this, FmdDeviceAdminReceiver.class);
         DevicePolicyManager dpm = (DevicePolicyManager)
                 getSystemService(DEVICE_POLICY_SERVICE);
 
@@ -173,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateDeviceAdminStatus() {
-        ComponentName admin = new ComponentName(this, DeviceAdminReceiver.class);
+        ComponentName admin = new ComponentName(this, FmdDeviceAdminReceiver.class);
         DevicePolicyManager dpm = (DevicePolicyManager)
                 getSystemService(DEVICE_POLICY_SERVICE);
 

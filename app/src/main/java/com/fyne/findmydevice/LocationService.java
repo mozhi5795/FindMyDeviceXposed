@@ -227,10 +227,11 @@ public class LocationService extends Service {
         }
 
         // 超时降级：15秒后用缓存或报错
-        if (cachedLocation != null) {
+        final Location fallbackLocation = cachedLocation;
+        if (fallbackLocation != null) {
             scheduler.schedule(() -> {
                 if (pendingCallbackNumber != null) {
-                    onLocationReceived(cachedLocation);
+                    onLocationReceived(fallbackLocation);
                 }
             }, SINGLE_LOCATION_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } else {
