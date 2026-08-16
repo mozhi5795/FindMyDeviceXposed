@@ -446,7 +446,7 @@ async function handleCommandResult(request, env) {
   const { token, commandId, result, time } = body;
   if (!token || !commandId) return json({ error: '缺少参数' }, 400);
 
-  const history = await getKV(env, 'history', []);
+  let history = await getKV(env, 'history', []);
   history.push({ token, commandId, action: '执行结果', result: result || 'unknown', time: time || Date.now() });
   if (history.length > 500) history = history.slice(-500);
   await putKV(env, 'history', history);
