@@ -8,7 +8,7 @@ compatibility_date = "2024-01-01"
 # 将输出的 id 填入下方 id 字段
 [[kv_namespaces]]
 binding = "FMD_KV"
-id = ""
+id = "a95a23c9d4d74d209a14020f09c38598"
 
 # ──────────────────────────────────────
 # 自定义域名（国内访问必须）
