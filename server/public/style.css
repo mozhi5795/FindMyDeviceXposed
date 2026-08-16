@@ -162,6 +162,7 @@ main {
 .cmd-lock   { background: #9C27B0; }
 .cmd-silent { background: #607D8B; }
 .cmd-vibrate { background: #795548; }
+.cmd-stop { background: #f44336; }
 
 #custom-command {
     display: flex;

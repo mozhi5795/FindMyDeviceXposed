@@ -234,6 +234,7 @@ main{display:flex;flex:1;overflow:hidden}
 .cmd-lock{background:#9C27B0}
 .cmd-silent{background:#607D8B}
 .cmd-vibrate{background:#795548}
+.cmd-stop{background:#f44336}
 #custom-command{display:flex;gap:6px;margin:8px 0}
 #custom-cmd-input{flex:1;padding:8px;border:1px solid #0f3460;border-radius:4px;background:#1a1a2e;color:#eee;font-size:12px}
 #custom-cmd-btn{padding:8px 16px;background:#e94560;color:#fff;border:none;border-radius:4px;cursor:pointer}
@@ -283,6 +284,7 @@ function renderDashboardHTML() {
       <button class="cmd-btn cmd-locate" data-action="LOCATE">📍 定位</button>
       <button class="cmd-btn cmd-alarm" data-action="ALARM">🔔 警报</button>
       <button class="cmd-btn cmd-ring" data-action="RING">📞 响铃</button>
+      <button class="cmd-btn cmd-stop" data-action="STOP">🛑 停止声音</button>
       <button class="cmd-btn cmd-lock" data-action="LOCK">🔒 锁屏</button>
       <button class="cmd-btn cmd-silent" data-action="SILENT">🔇 静音</button>
       <button class="cmd-btn cmd-vibrate" data-action="VIBRATE">📳 震动</button>

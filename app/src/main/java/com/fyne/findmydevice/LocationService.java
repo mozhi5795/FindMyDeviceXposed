@@ -522,6 +522,12 @@ public class LocationService extends Service {
                 }
                 break;
 
+            case "STOP":
+            case "STOPSOUND":
+            case "STOP_SOUND":
+                CommandProcessor.stopAllSounds();
+                break;
+
             case "VIBRATE":
                 int seconds = 3;
                 if (!parameter.isEmpty()) {

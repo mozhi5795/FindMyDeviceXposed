@@ -51,8 +51,52 @@ public class CommandProcessor {
     private static final String TAG = "FindMyDevice_Cmd";
     private final Context context;
 
+    // 全局单例管理正在播放的声音，避免多实例叠加停不下来
+    private static MediaPlayer sActivePlayer;
+    private static android.media.ToneGenerator sActiveTone;
+    private static AudioManager sVolumeManager;
+    private static int sSavedVolume = -1;
+    private static android.os.Handler sSoundHandler;
+    private static Runnable sSoundStopper;
+
     public CommandProcessor(Context context) {
         this.context = context;
+    }
+
+    /**
+     * 停止所有正在播放的声音并恢复音量（STOP/SILENT 指令、新指令播放前调用）
+     */
+    public static void stopAllSounds() {
+        try {
+            if (sActivePlayer != null) {
+                if (sActivePlayer.isPlaying()) sActivePlayer.stop();
+                sActivePlayer.release();
+                sActivePlayer = null;
+                Log.i(TAG, "已停止 MediaPlayer");
+            }
+        } catch (Throwable ignored) {}
+        try {
+            if (sActiveTone != null) {
+                sActiveTone.stopTone();
+                sActiveTone.release();
+                sActiveTone = null;
+                Log.i(TAG, "已停止 ToneGenerator");
+            }
+        } catch (Throwable ignored) {}
+        try {
+            if (sSoundHandler != null && sSoundStopper != null) {
+                sSoundHandler.removeCallbacks(sSoundStopper);
+                sSoundHandler = null;
+                sSoundStopper = null;
+            }
+        } catch (Throwable ignored) {}
+        // 恢复音量
+        if (sVolumeManager != null && sSavedVolume >= 0) {
+            try {
+                sVolumeManager.setStreamVolume(AudioManager.STREAM_MUSIC, sSavedVolume, 0);
+            } catch (Throwable ignored) {}
+            sSavedVolume = -1;
+        }
     }
 
     public void executeCommand(String commandPart, String senderNumber) {
@@ -113,8 +157,18 @@ public class CommandProcessor {
                 handleInfo(senderNumber);
                 break;
 
+            case "STOP":
+            case "STOPSOUND":
+            case "STOP_SOUND":
+                stopAllSounds();
+                if (!fromServer) {
+                    sendSms(context, senderNumber, "[FindMyDevice] 已停止所有声音");
+                }
+                break;
+
             case "SILENT":
             case "MUTE":
+                stopAllSounds();
                 handleSilent();
                 if (!fromServer) {
                     sendSms(context, senderNumber, "[FindMyDevice] 设备已设为静音");
@@ -164,10 +218,14 @@ public class CommandProcessor {
 
     private void handleAlarm() {
         try {
+            // 停止之前的任何声音，避免叠加
+            stopAllSounds();
+
             AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
             if (am == null) return;
 
-            int savedVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+            sVolumeManager = am;
+            sSavedVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC);
             int maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
             am.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0);
 
@@ -179,7 +237,7 @@ public class CommandProcessor {
                             RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                     },
                     AudioManager.STREAM_MUSIC,
-                    () -> am.setStreamVolume(AudioManager.STREAM_MUSIC, savedVolume, 0));
+                    true);
 
             if (!played) {
                 playFallbackTone();
@@ -194,6 +252,9 @@ public class CommandProcessor {
 
     private void handleRing() {
         try {
+            // 停止之前的任何声音，避免叠加
+            stopAllSounds();
+
             AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
             if (am != null) {
                 am.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
@@ -209,7 +270,7 @@ public class CommandProcessor {
                             RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                     },
                     AudioManager.STREAM_RING,
-                    null);
+                    false);
 
             if (!played) {
                 playFallbackTone();
@@ -223,10 +284,10 @@ public class CommandProcessor {
     }
 
     /**
-     * 尝试用 MediaPlayer 播放第一个可用的系统铃声。
+     * 尝试用 MediaPlayer 播放第一个可用的系统铃声（单例管理，可被 STOP 停止）。
      * 全部失败返回 false（调用方可用 ToneGenerator 兜底）。
      */
-    private boolean playWithFallback(Uri[] uris, int streamType, Runnable onStop) {
+    private boolean playWithFallback(Uri[] uris, int streamType, boolean restoreMusicVolume) {
         for (Uri uri : uris) {
             if (uri == null) continue;
             try {
@@ -237,15 +298,13 @@ public class CommandProcessor {
                 mp.setVolume(1.0f, 1.0f);
                 mp.prepare();
                 mp.start();
+
+                // 记录为当前活动播放器
+                sActivePlayer = mp;
                 Log.i(TAG, "正在播放铃声: " + uri);
 
-                new android.os.Handler(context.getMainLooper()).postDelayed(() -> {
-                    try {
-                        if (mp.isPlaying()) mp.stop();
-                        mp.release();
-                        if (onStop != null) onStop.run();
-                    } catch (Throwable ignored) {}
-                }, 30000);
+                // 30 秒后自动停止（也可被 STOP 指令提前停止）
+                scheduleAutoStop(restoreMusicVolume);
                 return true;
             } catch (Throwable t) {
                 Log.w(TAG, "铃声播放失败: " + uri + " -> " + t.getMessage());
@@ -255,19 +314,32 @@ public class CommandProcessor {
     }
 
     /**
-     * ToneGenerator 兜底：不依赖任何音频文件，100% 可发声
+     * 安排 30 秒后自动停止当前声音
+     */
+    private void scheduleAutoStop(boolean restoreMusicVolume) {
+        android.os.Handler handler = new android.os.Handler(context.getMainLooper());
+        sSoundHandler = handler;
+        Runnable stopper = () -> {
+            Log.i(TAG, "30秒超时，自动停止声音");
+            stopAllSounds();
+        };
+        sSoundStopper = stopper;
+        handler.postDelayed(stopper, 30000);
+    }
+
+    /**
+     * ToneGenerator 兜底：不依赖任何音频文件，100% 可发声（单例管理，可被 STOP 停止）
      */
     private void playFallbackTone() {
         try {
-            final android.media.ToneGenerator tg =
+            android.media.ToneGenerator tg =
                     new android.media.ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+            sActiveTone = tg;
             // 使用持续告警音，响 30 秒
             tg.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 30000);
             Log.i(TAG, "使用 ToneGenerator 播放告警音");
 
-            new android.os.Handler(context.getMainLooper()).postDelayed(() -> {
-                try { tg.release(); } catch (Throwable ignored) {}
-            }, 31000);
+            scheduleAutoStop(false);
         } catch (Throwable t) {
             Log.e(TAG, "ToneGenerator 播放失败", t);
         }
