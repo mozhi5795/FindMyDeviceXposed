@@ -183,7 +183,7 @@ const STATIC_FILES = {
   '/app.js': {
     contentType: 'application/javascript;charset=UTF-8',
     body: `var SELECTED_TOKEN=null,DEVICE_MARKERS={},MAP=null,POLL_INTERVAL=5000;
-function initMap(){MAP=L.map('map',{center:[35,105],zoom:5,zoomControl:true});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap',maxZoom:19}).addTo(MAP);}
+function getTileUrl(){var u=localStorage.getItem('fmd_tile_url');return u||'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';}function initMap(){MAP=L.map('map',{center:[35,105],zoom:5,zoomControl:true});L.tileLayer(getTileUrl(),{attribution:'Map',maxZoom:19}).addTo(MAP);}
 function setOnline(v){var e=document.getElementById('connection-status');e.textContent=v?'在线 ✓':'离线 ✗';e.className=v?'online':'offline';}
 function loadDevices(){fetch('/api/devices',{credentials:'same-origin'}).then(function(r){if(r.status===401){window.location.href='/login';return};return r.json();}).then(function(dev){if(!dev)return;setOnline(true);renderList(dev);dev.forEach(function(d){if(d.lastLat&&d.lastLng)updateMarker({token:d.token,lat:d.lastLat,lng:d.lastLng,accuracy:d.lastAccuracy,battery:d.lastBattery,model:d.model,online:d.online});});if(!SELECTED_TOKEN&&dev.length>0)selectDevice(dev[0].token);}).catch(function(){setOnline(false);});}
 function renderList(dev){var c=document.getElementById('device-list');if(!dev||!dev.length){c.innerHTML='<p class="hint">等待设备上报数据...</p>';return;}
@@ -200,7 +200,7 @@ function isRecent(ts){return ts&&(Date.now()-ts<300000);}
 function fmtTime(ts){if(!ts)return'--';var d=new Date(ts);return('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);}
 function timeAgo(ts){if(!ts)return'--';var diff=Date.now()-ts;if(diff<60000)return'刚刚';if(diff<3600000)return Math.floor(diff/60000)+'分钟前';if(diff<86400000)return Math.floor(diff/3600000)+'小时前';return Math.floor(diff/86400000)+'天前';}
 function poll(){loadDevices();loadHistory();}
-initMap();poll();setInterval(poll,POLL_INTERVAL);`
+function openSettings(){document.getElementById('settings-modal').style.display='flex';document.getElementById('tile-url-input').value=getTileUrl();}function saveSettings(){var v=document.getElementById('tile-url-input').value;if(v){localStorage.setItem('fmd_tile_url',v);MAP.remove();document.getElementById('map').innerHTML='';initMap();}document.getElementById('settings-modal').style.display='none';}function closeSettings(){document.getElementById('settings-modal').style.display='none';}initMap();poll();setInterval(poll,POLL_INTERVAL);`
   },
   '/style.css': {
     contentType: 'text/css;charset=UTF-8',
@@ -269,6 +269,7 @@ function renderDashboardHTML() {
 <header><h1>🔍 FindMyDevice 远程查找看板</h1>
 <div style="display:flex;align-items:center;gap:12px">
   <div id="connection-status">检查中...</div>
+  <span onclick="openSettings()" style="cursor:pointer;font-size:18px" title="地图设置">⚙️</span>
   <a href="/api/logout" style="color:#aaa;font-size:13px;text-decoration:none">退出</a>
 </div></header>
 <main>
@@ -304,6 +305,24 @@ function renderDashboardHTML() {
 </section>
 </main>
 <footer><h3>📋 指令执行历史</h3><div id="history-list"><p class="hint">暂无记录</p></div></footer>
+<div id="settings-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)closeSettings()">
+  <div style="background:#16213e;border-radius:12px;padding:24px;max-width:500px;width:90%;border:1px solid #0f3460">
+    <h3 style="color:#eee;margin-bottom:16px">🗺️ 地图瓦片设置</h3>
+    <p style="color:#888;font-size:13px;margin-bottom:12px;line-height:1.6">
+      填入瓦片 URL 模板，{s}/{z}/{x}/{y} 会被自动替换。<br>
+      不填则使用默认。<br><br>
+      🔹 高德地图(国内快): <code style="background:#1a1a2e;padding:2px 4px;border-radius:2px;font-size:12px">https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}</code><br>
+      🔹 天地图: 需要申请 key<br>
+      🔹 OSM(国际): <code style="background:#1a1a2e;padding:2px 4px;border-radius:2px;font-size:12px">https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png</code>
+    </p>
+    <input type="text" id="tile-url-input" placeholder="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" style="width:100%;padding:10px;border:1px solid #0f3460;border-radius:6px;background:#1a1a2e;color:#eee;font-size:14px;margin-bottom:12px"/>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeSettings()" style="padding:8px 16px;background:#555;color:#fff;border:none;border-radius:6px;cursor:pointer">取消</button>
+      <button onclick="localStorage.removeItem('fmd_tile_url');document.getElementById('tile-url-input').value='';saveSettings()" style="padding:8px 16px;background:#607D8B;color:#fff;border:none;border-radius:6px;cursor:pointer">恢复默认</button>
+      <button onclick="saveSettings()" style="padding:8px 16px;background:#4CAF50;color:#fff;border:none;border-radius:6px;cursor:pointer">保存</button>
+    </div>
+  </div>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/app.js"></script>
 </body></html>`;
