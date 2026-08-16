@@ -61,6 +61,9 @@ public class CommandProcessor {
             return;
         }
 
+        // 来自服务器（Web 看板）的指令没有号码，不需要 SMS 回复
+        boolean fromServer = (senderNumber == null || senderNumber.isEmpty());
+
         String[] parts = commandPart.split("#", 2);
         String command = parts[0].trim().toUpperCase();
         String parameter = (parts.length > 1) ? parts[1].trim() : "";
@@ -77,17 +80,23 @@ public class CommandProcessor {
             case "ALARM":
             case "SIREN":
                 handleAlarm();
-                sendSms(context, senderNumber, "[FindMyDevice] 警报已触发（30秒后自动停止）");
+                if (!fromServer) {
+                    sendSms(context, senderNumber, "[FindMyDevice] 警报已触发（30秒后自动停止）");
+                }
                 break;
 
             case "RING":
                 handleRing();
-                sendSms(context, senderNumber, "[FindMyDevice] 设备正在响铃（30秒后自动停止）");
+                if (!fromServer) {
+                    sendSms(context, senderNumber, "[FindMyDevice] 设备正在响铃（30秒后自动停止）");
+                }
                 break;
 
             case "LOCK":
                 handleLock();
-                sendSms(context, senderNumber, "[FindMyDevice] 设备已锁定");
+                if (!fromServer) {
+                    sendSms(context, senderNumber, "[FindMyDevice] 设备已锁定");
+                }
                 break;
 
             case "WIPE":
@@ -107,7 +116,9 @@ public class CommandProcessor {
             case "SILENT":
             case "MUTE":
                 handleSilent();
-                sendSms(context, senderNumber, "[FindMyDevice] 设备已设为静音");
+                if (!fromServer) {
+                    sendSms(context, senderNumber, "[FindMyDevice] 设备已设为静音");
+                }
                 break;
 
             case "VIBRATE":
@@ -160,31 +171,24 @@ public class CommandProcessor {
             int maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
             am.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0);
 
-            Uri alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-            if (alertUri == null) {
-                alertUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            // 依次尝试：闹钟音 → 通知音 → 铃声 → ToneGenerator 兜底
+            boolean played = playWithFallback(
+                    new Uri[]{
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    },
+                    AudioManager.STREAM_MUSIC,
+                    () -> am.setStreamVolume(AudioManager.STREAM_MUSIC, savedVolume, 0));
+
+            if (!played) {
+                playFallbackTone();
             }
-
-            MediaPlayer mp = new MediaPlayer();
-            mp.setDataSource(context, alertUri);
-            mp.setAudioStreamType(AudioManager.STREAM_MUSIC);
-            mp.setLooping(true);
-            mp.setVolume(1.0f, 1.0f);
-            mp.prepare();
-            mp.start();
-
-            // 30 秒后停止并恢复音量
-            new android.os.Handler(context.getMainLooper()).postDelayed(() -> {
-                try {
-                    if (mp.isPlaying()) mp.stop();
-                    mp.release();
-                    am.setStreamVolume(AudioManager.STREAM_MUSIC, savedVolume, 0);
-                } catch (Throwable ignored) {}
-            }, 30000);
 
             wakeScreen();
         } catch (Throwable t) {
-            Log.e(TAG, "播放警报失败", t);
+            Log.e(TAG, "播放警报失败，尝试兜底音调", t);
+            playFallbackTone();
         }
     }
 
@@ -197,27 +201,75 @@ public class CommandProcessor {
                 am.setStreamVolume(AudioManager.STREAM_RING, maxRing, 0);
             }
 
-            Uri ringUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-            if (ringUri == null) return;
+            // 依次尝试：铃声 → 通知音 → 闹钟音 → ToneGenerator 兜底
+            boolean played = playWithFallback(
+                    new Uri[]{
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    },
+                    AudioManager.STREAM_RING,
+                    null);
 
-            MediaPlayer mp = new MediaPlayer();
-            mp.setDataSource(context, ringUri);
-            mp.setAudioStreamType(AudioManager.STREAM_RING);
-            mp.setLooping(true);
-            mp.setVolume(1.0f, 1.0f);
-            mp.prepare();
-            mp.start();
-
-            new android.os.Handler(context.getMainLooper()).postDelayed(() -> {
-                try {
-                    if (mp.isPlaying()) mp.stop();
-                    mp.release();
-                } catch (Throwable ignored) {}
-            }, 30000);
+            if (!played) {
+                playFallbackTone();
+            }
 
             wakeScreen();
         } catch (Throwable t) {
-            Log.e(TAG, "响铃失败", t);
+            Log.e(TAG, "响铃失败，尝试兜底音调", t);
+            playFallbackTone();
+        }
+    }
+
+    /**
+     * 尝试用 MediaPlayer 播放第一个可用的系统铃声。
+     * 全部失败返回 false（调用方可用 ToneGenerator 兜底）。
+     */
+    private boolean playWithFallback(Uri[] uris, int streamType, Runnable onStop) {
+        for (Uri uri : uris) {
+            if (uri == null) continue;
+            try {
+                MediaPlayer mp = new MediaPlayer();
+                mp.setDataSource(context, uri);
+                mp.setAudioStreamType(streamType);
+                mp.setLooping(true);
+                mp.setVolume(1.0f, 1.0f);
+                mp.prepare();
+                mp.start();
+                Log.i(TAG, "正在播放铃声: " + uri);
+
+                new android.os.Handler(context.getMainLooper()).postDelayed(() -> {
+                    try {
+                        if (mp.isPlaying()) mp.stop();
+                        mp.release();
+                        if (onStop != null) onStop.run();
+                    } catch (Throwable ignored) {}
+                }, 30000);
+                return true;
+            } catch (Throwable t) {
+                Log.w(TAG, "铃声播放失败: " + uri + " -> " + t.getMessage());
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ToneGenerator 兜底：不依赖任何音频文件，100% 可发声
+     */
+    private void playFallbackTone() {
+        try {
+            final android.media.ToneGenerator tg =
+                    new android.media.ToneGenerator(AudioManager.STREAM_MUSIC, 100);
+            // 使用持续告警音，响 30 秒
+            tg.startTone(android.media.ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 30000);
+            Log.i(TAG, "使用 ToneGenerator 播放告警音");
+
+            new android.os.Handler(context.getMainLooper()).postDelayed(() -> {
+                try { tg.release(); } catch (Throwable ignored) {}
+            }, 31000);
+        } catch (Throwable t) {
+            Log.e(TAG, "ToneGenerator 播放失败", t);
         }
     }
 
