@@ -15,9 +15,9 @@ id = "a95a23c9d4d74d209a14020f09c38598"
 # ──────────────────────────────────────
 # 前提：你的域名 DNS 已托管到 Cloudflare
 # 方法1：在这里配置路由
-routes = [
-  { pattern = "findmy.你的域名.com/*", zone_id = "你的域名zone_id" }
-]
+# routes = [
+#   { pattern = "findmy.你的域名.com/*", zone_id = "你的域名zone_id" }
+# ]
 # zone_id 在 Cloudflare 域名概览页右下方可找到
 #
 # 方法2：部署后在 CF Dashboard 配
