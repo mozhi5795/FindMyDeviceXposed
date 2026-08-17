@@ -92,11 +92,17 @@ public class LocationService extends Service {
         NotificationHelper.createNotificationChannels(this);
     }
 
+    // KSU 模块启动标记：跳过前台通知，由 root 保活
+    public static final String EXTRA_FROM_KSU = "from_ksu";
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // 检查是否由 KSU 模块启动（root 保活，不显示通知）
+        boolean fromKsu = intent != null && intent.getBooleanExtra(EXTRA_FROM_KSU, false);
+
         if (intent == null || intent.getAction() == null) {
-            Log.i(TAG, "服务重启，启动轮询");
-            if (!tryStartForeground()) return START_NOT_STICKY;
+            Log.i(TAG, "服务重启" + (fromKsu ? "（KSU 保活模式）" : ""));
+            if (!fromKsu && !tryStartForeground()) return START_NOT_STICKY;
             if (!isPolling) {
                 startPolling();
             }
@@ -104,17 +110,17 @@ public class LocationService extends Service {
         }
 
         String action = intent.getAction();
-        Log.i(TAG, "onStartCommand: " + action);
+        Log.i(TAG, "onStartCommand: " + action + (fromKsu ? " (KSU)" : ""));
 
         switch (action) {
             case ACTION_GET_LOCATION:
                 String callback = intent.getStringExtra(EXTRA_CALLBACK_NUMBER);
-                if (!tryStartForeground()) return START_NOT_STICKY;
+                if (!fromKsu && !tryStartForeground()) return START_NOT_STICKY;
                 requestSingleLocation(callback);
                 break;
 
             case ACTION_START_POLLING:
-                if (!tryStartForeground()) return START_NOT_STICKY;
+                if (!fromKsu && !tryStartForeground()) return START_NOT_STICKY;
                 if (!isPolling) {
                     startPolling();
                 }

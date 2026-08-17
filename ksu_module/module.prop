@@ -1,0 +1,6 @@
+id=findmydevice_ksu
+name=FindMyDevice 保活守护
+version=1.0
+versionCode=1
+author=Fyne
+description=开机拉起 FindMyDevice 定位轮询服务并保活，无需等待解锁，比前台通知方案更可靠

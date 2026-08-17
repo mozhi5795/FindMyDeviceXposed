@@ -49,6 +49,29 @@ cd FindMyDeviceXposed
 # 生成的 APK 在 app/build/outputs/apk/release/
 ```
 
+### 安装 KSU 保活模块（推荐）
+KSU 模块在开机时直接用 root 拉起轮询服务并锁定进程优先级，**不依赖解锁、不显示通知**，比纯 Xposed 方案更可靠。
+
+```bash
+# 将 ksu_module/ 目录打包为 Flashable ZIP
+cd FindMyDeviceXposed
+cd ksu_module && zip -r ../FindMyDevice-KSU.zip * && cd ..
+# 或用 KernelSU Manager / Magisk Manager 直接选择 ksu_module 目录安装
+```
+
+然后在 KernelSU Manager 中：
+1. 打开 **模块** 页面
+2. 点击 **本地安装** → 选择 `FindMyDevice-KSU.zip`
+3. 或直接将 `ksu_module/` 目录复制到 `/data/adb/modules/findmydevice_ksu/`
+4. 重启手机
+
+安装后 KSU 模块会自动：
+- ✅ 开机后立即启动轮询服务（无需解锁）
+- ✅ 无通知启动（不显示常驻通知栏）
+- ✅ 锁定 OOM 优先级，防后台杀死
+- ✅ 30 秒保活看门狗，异常退出自动重启
+- ✅ Shell 后备轮询（Java 服务未就绪时也能响应 LOCATE 指令）
+
 ### LSPosed 激活
 1. 安装 APK
 2. 打开 LSPosed 模块管理器
@@ -229,6 +252,9 @@ FindMyDeviceXposed/
 │       ├── index.html            # 看板页面
 │       ├── style.css             # 暗色主题样式
 │       └── app.js                # 前端逻辑
+├── ksu_module/                  # KernelSU 保活模块（可选）
+│   ├── module.prop              # 模块元数据
+│   └── service.sh               # 开机启动 + 保活看门狗
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── README.md
