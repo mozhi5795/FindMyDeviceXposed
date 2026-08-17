@@ -47,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
     private CheckBox chkBootStart;
     private CheckBox chkSmsControl;
     private CheckBox chkAllowAll;
-    private CheckBox chkAutoReport;
     private CheckBox chkServerPoll;
 
     private EditText etCommandPrefix;
@@ -77,7 +76,6 @@ public class MainActivity extends AppCompatActivity {
         chkBootStart = findViewById(R.id.chk_boot_start);
         chkSmsControl = findViewById(R.id.chk_sms_control);
         chkAllowAll = findViewById(R.id.chk_allow_all);
-        chkAutoReport = findViewById(R.id.chk_auto_report);
         chkServerPoll = findViewById(R.id.chk_server_poll);
 
         etCommandPrefix = findViewById(R.id.et_command_prefix);
@@ -92,10 +90,6 @@ public class MainActivity extends AppCompatActivity {
         // 服务端开关联动
         chkServerPoll.setOnCheckedChangeListener((buttonView, isChecked) -> {
             etServerUrl.setEnabled(isChecked);
-            if (isChecked) {
-                // 启用时自动开启自动上报
-                chkAutoReport.setChecked(true);
-            }
         });
 
         btnActivateAdmin.setOnClickListener(v -> activateDeviceAdmin());
@@ -141,7 +135,6 @@ public class MainActivity extends AppCompatActivity {
         chkBootStart.setChecked(prefs.getBoolean(ConfigManager.KEY_BOOT_START, true));
         chkSmsControl.setChecked(prefs.getBoolean(ConfigManager.KEY_SMS_CONTROL, true));
         chkAllowAll.setChecked(prefs.getBoolean(ConfigManager.KEY_ALLOW_ALL_SENDERS, false));
-        chkAutoReport.setChecked(prefs.getBoolean(ConfigManager.KEY_AUTO_REPORT, false));
         chkServerPoll.setChecked(ConfigManager.isServerPollEnabled(this));
 
         etCommandPrefix.setText(prefs.getString(
@@ -196,7 +189,6 @@ public class MainActivity extends AppCompatActivity {
         editor.putBoolean(ConfigManager.KEY_BOOT_START, chkBootStart.isChecked());
         editor.putBoolean(ConfigManager.KEY_SMS_CONTROL, chkSmsControl.isChecked());
         editor.putBoolean(ConfigManager.KEY_ALLOW_ALL_SENDERS, chkAllowAll.isChecked());
-        editor.putBoolean(ConfigManager.KEY_AUTO_REPORT, chkAutoReport.isChecked());
         editor.putBoolean(ConfigManager.KEY_SERVER_POLL_ENABLED, chkServerPoll.isChecked());
 
         String prefix = etCommandPrefix.getText().toString().trim();
@@ -216,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
         // 根据配置变化启停服务（先检查定位权限，防止闪退）
         if (chkBootStart.isChecked()) {
             if (hasLocationPermission()) {
-                startMonitorService();
+                startPollingService();
             } else {
                 Toast.makeText(this, "请先授权定位权限（点击右上角或系统设置）",
                         Toast.LENGTH_LONG).show();
@@ -233,16 +225,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Toast.makeText(this, "配置已保存", Toast.LENGTH_SHORT).show();
-    }
-
-    private void startMonitorService() {
-        Intent intent = new Intent(this, LocationService.class);
-        intent.setAction(LocationService.ACTION_START_MONITOR);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent);
-        } else {
-            startService(intent);
-        }
     }
 
     private void startPollingService() {
@@ -296,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
         if (prefs.getBoolean(ConfigManager.KEY_BOOT_START, true)
                 && hasLocationPermission()
                 && chkBootStart != null && chkBootStart.isChecked()) {
-            startMonitorService();
+            startPollingService();
         }
     }
 }

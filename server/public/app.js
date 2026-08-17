@@ -104,8 +104,7 @@ function renderDeviceList(devices) {
             + '<div class="device-name"><span class="' + (online ? 'online' : 'offline') + '">●</span> '
             + (d.model || d.token.substring(0, 16)) + '</div>'
             + '<div class="device-meta">' + (online ? '在线' : '离线') + ' · ' + ago
-            + (d.lastBattery > 0 ? ' · 电量 ' + d.lastBattery + '%' : '')
-            + (d.locationCount > 0 ? ' · ' + d.locationCount + ' 个位置点' : '') + '</div></div>';
+            + (d.lastBattery > 0 ? ' · 电量 ' + d.lastBattery + '%' : '') + '</div></div>';
     }).join('');
 }
 
@@ -120,6 +119,11 @@ function selectDevice(token) {
         m.openPopup();
     }
     loadDeviceHistory(token);
+    // 打开页面时自动请求一次定位（仅首次）
+    if (!window._firstLocated) {
+        window._firstLocated = true;
+        sendCmd('LOCATE', '');
+    }
 }
 
 function loadDeviceDetail(token) {
@@ -136,7 +140,6 @@ function loadDeviceDetail(token) {
                 + '<div>精度: ' + (info.lastAccuracy ? info.lastAccuracy + '米' : '未知') + '</div>'
                 + '<div>定位源: ' + (info.lastProvider || '未知') + '</div>'
                 + '<div>电量: ' + (info.lastBattery > 0 ? info.lastBattery + '%' : '未知') + '</div>'
-                + '<div>位置点数: ' + ((info.locations || []).length) + '</div>'
                 + '<div>首次上报: ' + fmtTime(info.firstSeen) + '</div>'
                 + '<div>最后活跃: ' + fmtTime(info.lastSeen) + '</div>';
             updateInfoBar({
@@ -175,21 +178,28 @@ function updateMarker(data) {
     }
 }
 
-// ---- 轨迹 ----
+// ---- 指令历史（按设备筛选） ----
 function loadDeviceHistory(token) {
-    fetch('/api/device/' + encodeURIComponent(token))
+    var url = token ? '/api/commands/history?token=' + encodeURIComponent(token) : '/api/commands/history';
+    fetch(url)
         .then(function(r) { return r.json(); })
-        .then(function(info) {
-            var locs = info.locations || [];
-            if (locs.length < 2) return;
-            if (window._trailLine) MAP.removeLayer(window._trailLine);
-            if (window._trailStart) MAP.removeLayer(window._trailStart);
-            if (window._trailEnd) MAP.removeLayer(window._trailEnd);
-            var pts = locs.map(function(l) { return [l.lat, l.lng]; });
-            window._trailLine = L.polyline(pts, { color: '#e94560', weight: 3, opacity: 0.6 }).addTo(MAP);
-            window._trailStart = L.circleMarker(pts[0], { radius: 5, color: '#4CAF50', fillColor: '#4CAF50', fillOpacity: 1 }).addTo(MAP).bindPopup('最早位置');
-            window._trailEnd = L.circleMarker(pts[pts.length - 1], { radius: 5, color: '#f44336', fillColor: '#f44336', fillOpacity: 1 }).addTo(MAP).bindPopup('最新位置');
-            MAP.fitBounds(pts);
+        .then(function(items) {
+            var container = document.getElementById('history-list');
+            var hint = container.querySelector('.hint');
+            if (hint) hint.remove();
+            if (!items || items.length === 0) {
+                if (!container.querySelector('.hint')) {
+                    container.innerHTML = '<p class="hint">暂无记录</p>';
+                }
+                return;
+            }
+            container.innerHTML = items.slice(-30).reverse().map(function(h) {
+                return '<div class="history-item">'
+                    + '<span class="h-time">' + fmtTime(h.time) + '</span>'
+                    + '<span class="h-device">' + ((h.token || '').substring(0, 10)) + '</span>'
+                    + '<span class="h-action">' + (h.action || '--') + '</span>'
+                    + '<span class="h-result' + (h.result && h.result.startsWith('error') ? ' error' : '') + '">' + (h.result || '--') + '</span></div>';
+            }).join('');
         })
         .catch(function() {});
 }

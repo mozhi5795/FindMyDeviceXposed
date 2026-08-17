@@ -59,27 +59,16 @@ public class BootReceiver extends BroadcastReceiver {
             return;
         }
 
-        // 启动定位服务
-        Intent serviceIntent = new Intent(context, LocationService.class);
-        serviceIntent.setAction(LocationService.ACTION_START_MONITOR);
+        // 启动轮询服务（监听服务器指令，不再持续 GPS 定位，省电）
+        Intent pollIntent = new Intent(context, LocationService.class);
+        pollIntent.setAction(LocationService.ACTION_START_POLLING);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent);
+            context.startForegroundService(pollIntent);
         } else {
-            context.startService(serviceIntent);
+            context.startService(pollIntent);
         }
 
         ConfigManager.setBootStartTime(context, System.currentTimeMillis());
-        Log.i(TAG, "定位服务已启动");
-
-        // 如果配置了 Web 服务器地址，同时启动服务器轮询
-        if (ConfigManager.isServerPollEnabled(context)) {
-            Intent pollIntent = new Intent(context, LocationService.class);
-            pollIntent.setAction(LocationService.ACTION_START_POLLING);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(pollIntent);
-            } else {
-                context.startService(pollIntent);
-            }
-        }
+        Log.i(TAG, "轮询服务已启动（省电模式：不持续监听 GPS）");
     }
 }

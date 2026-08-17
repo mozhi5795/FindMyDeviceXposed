@@ -7,14 +7,12 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
@@ -49,8 +47,6 @@ public class LocationService extends Service {
     private static final String TAG = "FindMyDevice_LocSvc";
 
     // Actions
-    public static final String ACTION_START_MONITOR  = "com.fyne.findmydevice.START_MONITOR";
-    public static final String ACTION_STOP_MONITOR   = "com.fyne.findmydevice.STOP_MONITOR";
     public static final String ACTION_GET_LOCATION   = "com.fyne.findmydevice.GET_LOCATION";
     public static final String ACTION_START_POLLING  = "com.fyne.findmydevice.START_POLLING";
     public static final String ACTION_STOP_POLLING   = "com.fyne.findmydevice.STOP_POLLING";
@@ -59,15 +55,11 @@ public class LocationService extends Service {
 
     private static final int NOTIFICATION_ID = 1001;
 
-    private static final long LOCATION_UPDATE_MS       = 30 * 1000;  // 30秒
-    private static final long LOCATION_MIN_DISTANCE_M   = 10;         // 10米
     private static final long SINGLE_LOCATION_TIMEOUT_MS = 15 * 1000; // 15秒
     private static final long POLL_INTERVAL_MS          = 15 * 1000;  // 15秒
 
     private LocationManager locationManager;
     private ScheduledExecutorService scheduler;
-    private Handler mainHandler;
-
     private String pendingCallbackNumber;
     private Location bestLocation;
 
@@ -96,7 +88,6 @@ public class LocationService extends Service {
         Log.i(TAG, "定位服务创建");
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         scheduler = Executors.newScheduledThreadPool(2);
-        mainHandler = new Handler(Looper.getMainLooper());
         createNotificationChannel();
         NotificationHelper.createNotificationChannels(this);
     }
@@ -104,9 +95,11 @@ public class LocationService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null || intent.getAction() == null) {
-            Log.i(TAG, "服务重启，恢复监听");
+            Log.i(TAG, "服务重启，启动轮询");
             if (!tryStartForeground()) return START_NOT_STICKY;
-            startMonitoring();
+            if (!isPolling) {
+                startPolling();
+            }
             return START_STICKY;
         }
 
@@ -114,17 +107,6 @@ public class LocationService extends Service {
         Log.i(TAG, "onStartCommand: " + action);
 
         switch (action) {
-            case ACTION_START_MONITOR:
-                if (!tryStartForeground()) return START_NOT_STICKY;
-                startMonitoring();
-                break;
-
-            case ACTION_STOP_MONITOR:
-                stopMonitoring();
-                stopForeground(true);
-                stopSelf();
-                break;
-
             case ACTION_GET_LOCATION:
                 String callback = intent.getStringExtra(EXTRA_CALLBACK_NUMBER);
                 if (!tryStartForeground()) return START_NOT_STICKY;
@@ -173,46 +155,10 @@ public class LocationService extends Service {
     public void onDestroy() {
         super.onDestroy();
         Log.i(TAG, "定位服务销毁");
-        stopMonitoring();
         stopPolling();
         if (scheduler != null && !scheduler.isShutdown()) {
             scheduler.shutdown();
         }
-    }
-
-    // ==================== 持续监听 ====================
-
-    private void startMonitoring() {
-        try {
-            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER,
-                        LOCATION_UPDATE_MS,
-                        LOCATION_MIN_DISTANCE_M,
-                        locationListener,
-                        Looper.getMainLooper());
-                Log.i(TAG, "GPS 监听已启动");
-            }
-            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                        LocationManager.NETWORK_PROVIDER,
-                        LOCATION_UPDATE_MS,
-                        LOCATION_MIN_DISTANCE_M,
-                        locationListener,
-                        Looper.getMainLooper());
-                Log.i(TAG, "Network 监听已启动");
-            }
-        } catch (SecurityException e) {
-            Log.e(TAG, "定位权限不足", e);
-        }
-    }
-
-    private void stopMonitoring() {
-        try {
-            locationManager.removeUpdates(locationListener);
-            locationManager.removeUpdates(singleLocationListener);
-        } catch (Throwable ignored) {}
-        Log.i(TAG, "位置监听已停止");
     }
 
     // ==================== 单次定位 ====================
@@ -359,27 +305,16 @@ public class LocationService extends Service {
     }
 
     /**
-     * 轮询服务器：
-     * 1. 上报当前位置
-     * 2. 拉取待执行指令
-     * 3. 执行指令并上报结果
+     * 轮询服务器：只拉取远程指令（不再持续上报位置，省电）
+     * 轮询到 LOCATE 指令时会触发单次定位并上报结果。
      */
     private void pollServer() {
-        SharedPreferences prefs = ConfigManager.getPreferences(this);
         String serverUrl = ConfigManager.getServerUrl(this);
         String deviceToken = ConfigManager.getDeviceToken(this);
 
         if (serverUrl == null || serverUrl.isEmpty()) return;
 
-        // 1. 上报位置（无缓存位置时主动请求一次，保证看板首次能拿到数据）
-        Location loc = bestLocation;
-        if (loc != null) {
-            reportLocation(serverUrl, deviceToken, loc);
-        } else {
-            requestLocationForReport();
-        }
-
-        // 2. 拉取指令
+        // 只拉取远程指令，不再自动上报位置（由 LOCATE 指令触发单次定位）
         fetchCommands(serverUrl, deviceToken);
     }
 
@@ -601,39 +536,6 @@ public class LocationService extends Service {
     }
 
     // ==================== 监听器 ====================
-
-    private final LocationListener locationListener = new LocationListener() {
-        @Override
-        public void onLocationChanged(Location location) {
-            bestLocation = location;
-            Log.d(TAG, "位置更新: " + formatLocation(location));
-
-            // 如果开启了自动上报，立即上报
-            SharedPreferences prefs = ConfigManager.getPreferences(LocationService.this);
-            if (prefs.getBoolean(ConfigManager.KEY_AUTO_REPORT, false)) {
-                String serverUrl = ConfigManager.getServerUrl(LocationService.this);
-                String token = ConfigManager.getDeviceToken(LocationService.this);
-                if (!serverUrl.isEmpty()) {
-                    reportLocation(serverUrl, token, location);
-                }
-            }
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-            Log.w(TAG, "定位源已关闭: " + provider);
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-            Log.d(TAG, "定位源状态: " + provider + " -> " + status);
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-            Log.i(TAG, "定位源已开启: " + provider);
-        }
-    };
 
     private final LocationListener singleLocationListener = new LocationListener() {
         @Override
