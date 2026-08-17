@@ -18,7 +18,8 @@ function getTileUrl() {
 
 /** 根据 URL 自动选择子域名（高德用数字，其他用字母 a-c） */
 function getTileOpts(url) {
-    var opts = { attribution: 'Map', maxZoom: 19 };
+    var isChina = url && (url.indexOf('autonavi') >= 0 || url.indexOf('webrd') >= 0 || url.indexOf('wprd') >= 0);
+    var opts = { attribution: 'Map', maxZoom: isChina ? 18 : 19 };
     if (url.indexOf('{s}') >= 0) {
         // 高德：webrd01/wprd01 等格式用 01/02/03/04；webrd0/wprd0 等格式用 0/1/2/3；通用格式用数字
         if (url.indexOf('webrd') >= 0 || url.indexOf('wprd') >= 0 || url.indexOf('autonavi') >= 0) {
@@ -35,10 +36,11 @@ function getTileOpts(url) {
 
 // ---- 初始化地图 ----
 function initMap() {
-    MAP = L.map('map', { center: [35, 105], zoom: 5, zoomControl: true });
     var u = getTileUrl();
+    var mz = u && (u.indexOf('autonavi') >= 0 || u.indexOf('webrd') >= 0 || u.indexOf('wprd') >= 0) ? 18 : 19;
+    MAP = L.map('map', { center: [35, 105], zoom: 5, zoomControl: true, maxZoom: mz });
     L.tileLayer(u, getTileOpts(u)).addTo(MAP);
-    _usingChinaTiles = u && (u.indexOf('autonavi') >= 0 || u.indexOf('webrd') >= 0 || u.indexOf('wprd') >= 0);
+    _usingChinaTiles = mz < 19;
 }
 
 // ---- 地图设置面板 ----
