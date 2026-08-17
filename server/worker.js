@@ -460,16 +460,22 @@ async function handleGetCommands(env, url) {
   const token = url.searchParams.get('token');
   if (!token) return json({ error: '缺少 token' }, 400);
 
-  // 设备轮询指令时同步更新在线状态（解决上线延迟问题）
+  // 设备轮询时更新在线状态（每 30 秒写一次 KV，省配额）
   const device = await getKV(env, 'device:' + token, null);
   if (device) {
     device.lastSeen = Date.now();
     device.online = true;
-    await putKV(env, 'device:' + token, device);
+    // 距上次写入超过 30 秒才写，避免每 5 秒刷一次 KV
+    if (!device._lastWrite || Date.now() - device._lastWrite > 30000) {
+      device._lastWrite = Date.now();
+      await putKV(env, 'device:' + token, device);
+    }
   }
 
   const cmds = await getKV(env, 'commands:' + token, []);
-  await putKV(env, 'commands:' + token, []); // 取走后清空
+  if (cmds.length > 0) {
+    await putKV(env, 'commands:' + token, []); // 有指令才清空
+  }
   return json(cmds.map(c => ({ id: c.id, action: c.action, parameter: c.parameter || '' })));
 }
 
