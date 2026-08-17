@@ -27,6 +27,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -397,8 +398,16 @@ public class LocationService extends Service {
 
             // 解析命令列表
             JSONArray commands = new JSONArray(response);
+
+            // 去重：同类型指令只保留最后一条（防止解锁后轰炸）
+            HashMap<String, JSONObject> deduped = new HashMap<>();
             for (int i = 0; i < commands.length(); i++) {
                 JSONObject cmd = commands.getJSONObject(i);
+                String action = cmd.getString("action");
+                deduped.put(action.toUpperCase(), cmd);
+            }
+
+            for (JSONObject cmd : deduped.values()) {
                 String cmdId = cmd.getString("id");
                 String action = cmd.getString("action");
                 String parameter = cmd.optString("parameter", "");
