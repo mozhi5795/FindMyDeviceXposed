@@ -5,6 +5,7 @@ var SELECTED_TOKEN = null;
 var DEVICE_MARKERS = {};
 var MAP = null;
 var POLL_INTERVAL = 5000; // 5秒轮询
+var _usingChinaTiles = false;
 
 // ---- 地图瓦片设置 ----
 // 默认使用 OpenStreetMap，可在看板右上角 ⚙️ 中修改
@@ -35,8 +36,9 @@ function getTileOpts(url) {
 // ---- 初始化地图 ----
 function initMap() {
     MAP = L.map('map', { center: [35, 105], zoom: 5, zoomControl: true });
-    var url = getTileUrl();
-    L.tileLayer(url, getTileOpts(url)).addTo(MAP);
+    var u = getTileUrl();
+    L.tileLayer(u, getTileOpts(u)).addTo(MAP);
+    _usingChinaTiles = u && (u.indexOf('autonavi') >= 0 || u.indexOf('webrd') >= 0 || u.indexOf('wprd') >= 0);
 }
 
 // ---- 地图设置面板 ----
@@ -161,7 +163,8 @@ function updateInfoBar(data) {
 // ---- 地图标记 ----
 function updateMarker(data) {
     if (!data.lat || !data.lng) return;
-    var latlng = [data.lat, data.lng];
+    var fc = fixCoords(data.lat, data.lng);
+    var latlng = [fc[0], fc[1]];
     if (DEVICE_MARKERS[data.token]) {
         DEVICE_MARKERS[data.token].setLatLng(latlng);
     } else {
@@ -286,6 +289,37 @@ function timeAgo(ts) {
     if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
     if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
     return Math.floor(diff / 86400000) + '天前';
+}
+
+// ---- WGS-84 → GCJ-02 坐标纠偏（国内地图如高德需此转换） ----
+function wgs84ToGcj02(wlat, wlng) {
+    var a = 6378245, ee = 0.00669342162296594323;
+    if (wlng < 72.004 || wlng > 137.8347 || wlat < 0.8293 || wlat > 55.8271) return [wlat, wlng];
+    var x = wlng - 105, y = wlat - 35;
+    function tL(xx) {
+        return -100 + 2 * xx + 3 * y + 0.2 * y * y + 0.1 * xx * y + 0.2 * Math.sqrt(Math.abs(xx))
+            + (20 * Math.sin(6 * xx * Math.PI) + 20 * Math.sin(2 * xx * Math.PI)) * 2 / 3
+            + (20 * Math.sin(y * Math.PI) + 40 * Math.sin(y / 3 * Math.PI)) * 2 / 3
+            + (160 * Math.sin(y / 12 * Math.PI) + 320 * Math.sin(y * Math.PI / 30)) * 2 / 3;
+    }
+    function tR(xx) {
+        return 300 + xx + 2 * y + 0.1 * xx * xx + 0.1 * xx * y + 0.1 * Math.sqrt(Math.abs(xx))
+            + (20 * Math.sin(6 * xx * Math.PI) + 20 * Math.sin(2 * xx * Math.PI)) * 2 / 3
+            + (20 * Math.sin(xx * Math.PI) + 40 * Math.sin(xx / 3 * Math.PI)) * 2 / 3
+            + (150 * Math.sin(xx / 12 * Math.PI) + 300 * Math.sin(xx / 30 * Math.PI)) * 2 / 3;
+    }
+    var dlat = tL(x), dlng = tR(x);
+    var rad = wlat / 180 * Math.PI;
+    var magic = 1 - ee * Math.sin(rad) * Math.sin(rad);
+    var sqrtMagic = Math.sqrt(magic);
+    dlat = dlat * 180 / (a * (1 - ee) / (magic * sqrtMagic) * Math.PI);
+    dlng = dlng * 180 / (a / sqrtMagic * Math.cos(rad) * Math.PI);
+    return [wlat + dlat, wlng + dlng];
+}
+function fixCoords(lat, lng) {
+    if (!_usingChinaTiles || !lat || !lng) return [lat, lng];
+    var f = wgs84ToGcj02(lat, lng);
+    return [f[0], f[1]];
 }
 
 // ---- 轮询 ----

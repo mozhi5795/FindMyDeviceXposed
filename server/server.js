@@ -56,6 +56,13 @@ app.get('/api/commands', (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: '缺少 token' });
 
+  // 设备轮询指令时同步更新在线状态（解决上线延迟问题）
+  const device = devices.get(token);
+  if (device) {
+    device.lastSeen = Date.now();
+    device.online = true;
+  }
+
   const cmds = pendingCommands.get(token) || [];
   pendingCommands.set(token, []);
 
