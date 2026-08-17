@@ -57,7 +57,7 @@ public class LocationService extends Service {
     private static final int NOTIFICATION_ID = 1001;
 
     private static final long SINGLE_LOCATION_TIMEOUT_MS = 15 * 1000; // 15秒
-    private static final long POLL_INTERVAL_MS          = 15 * 1000;  // 15秒
+    private static final long POLL_INTERVAL_MS          = 5 * 1000;   // 5秒（降低延迟）
 
     private LocationManager locationManager;
     private ScheduledExecutorService scheduler;
