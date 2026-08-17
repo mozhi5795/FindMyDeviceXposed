@@ -313,6 +313,9 @@ public class LocationService extends Service {
      * 轮询到 LOCATE 指令时会触发单次定位并上报结果。
      */
     private void pollServer() {
+        // 尝试迁移 CE→DE（用户解锁后自动完成，不需打开 App）
+        ConfigManager.migrateFromCe(this);
+
         String serverUrl = ConfigManager.getServerUrl(this);
         String deviceToken = ConfigManager.getDeviceToken(this);
 
