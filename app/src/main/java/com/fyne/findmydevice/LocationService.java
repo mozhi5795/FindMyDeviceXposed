@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -58,11 +59,14 @@ public class LocationService extends Service {
 
     private static final long SINGLE_LOCATION_TIMEOUT_MS = 15 * 1000; // 15秒
     private static final long POLL_INTERVAL_MS          = 5 * 1000;   // 5秒（降低延迟）
+    private static final long POWER_SAVE_POLL_INTERVAL_MS = 30 * 1000; // 省电模式：30秒
 
     private LocationManager locationManager;
+    private PowerManager powerManager;
     private ScheduledExecutorService scheduler;
     private String pendingCallbackNumber;
     private Location bestLocation;
+    private long lastPollTime = 0;
 
     // true: 定位结果用于 HTTP 上报服务器（轮询时无位置主动请求）
     // false: 定位结果用于 SMS 回复（LOCATE 指令）
@@ -314,6 +318,16 @@ public class LocationService extends Service {
      * 轮询到 LOCATE 指令时会触发单次定位并上报结果。
      */
     private void pollServer() {
+        // 省电模式检测：开启时降频轮询
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (pm != null && pm.isPowerSaveMode()) {
+            long now = System.currentTimeMillis();
+            if (now - lastPollTime < POWER_SAVE_POLL_INTERVAL_MS) {
+                return; // 省电模式，离上次轮询不足 30 秒，跳过
+            }
+        }
+        lastPollTime = System.currentTimeMillis();
+
         // 尝试迁移 CE→DE（用户解锁后自动完成，不需打开 App）
         ConfigManager.migrateFromCe(this);
 
