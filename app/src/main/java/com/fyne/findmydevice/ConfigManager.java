@@ -2,6 +2,7 @@ package com.fyne.findmydevice;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import java.util.Map;
 
 /**
  * 配置管理器
@@ -36,7 +37,31 @@ public class ConfigManager {
 
     public static SharedPreferences getPreferences(Context context) {
         if (prefs == null) {
-            prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+            // 使用 DE（设备级加密）存储，解锁前后均可读写
+            // 确保开机未解锁时服务也能读取配置（服务器地址、设备令牌）
+            Context deContext = context.createDeviceProtectedStorageContext();
+            prefs = deContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+
+            // 首次切换到 DE 时，从 CE（旧存储）迁移已有数据
+            if (!prefs.getBoolean("de_migrated", false)) {
+                SharedPreferences cePrefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+                if (cePrefs.getAll().size() > 0) {
+                    SharedPreferences.Editor editor = prefs.edit();
+                    for (Map.Entry<String, ?> entry : cePrefs.getAll().entrySet()) {
+                        String key = entry.getKey();
+                        Object val = entry.getValue();
+                        if (val instanceof String) editor.putString(key, (String) val);
+                        else if (val instanceof Boolean) editor.putBoolean(key, (Boolean) val);
+                        else if (val instanceof Long) editor.putLong(key, (Long) val);
+                        else if (val instanceof Integer) editor.putInt(key, (Integer) val);
+                        else if (val instanceof Float) editor.putFloat(key, (Float) val);
+                    }
+                    editor.putBoolean("de_migrated", true);
+                    editor.apply();
+                } else {
+                    prefs.edit().putBoolean("de_migrated", true).apply();
+                }
+            }
         }
         return prefs;
     }

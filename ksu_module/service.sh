@@ -14,8 +14,12 @@ APP_PACKAGE="com.fyne.findmydevice"
 SERVICE_CLASS="com.fyne.findmydevice.LocationService"
 SERVICE_ACTION="com.fyne.findmydevice.START_POLLING"
 POLL_INTERVAL=15
+# CE 路径（旧版，首次解锁前不可读）
 CONFIG_DIR="/data/data/${APP_PACKAGE}/shared_prefs"
 CONFIG_FILE="${CONFIG_DIR}/findmydevice_config.xml"
+# DE 路径（新版，解锁前后均可读）
+DE_CONFIG_DIR="/data/data/${APP_PACKAGE}/device_shared_prefs"
+DE_CONFIG_FILE="${DE_CONFIG_DIR}/findmydevice_config.xml"
 
 # ---- 日志 ----
 log() {
@@ -32,19 +36,30 @@ wait_for_boot() {
 }
 
 # ---- 读取配置（从 SharedPreferences XML） ----
-# 首次解锁前 FBE 加密，此函数会失败，届时使用默认值
+# Java 端已改用 DE（设备级加密）存储，解锁前后均可读写。
+# Shell 后备轮询优先读取 DE 路径，读不到则尝试 CE 路径。
 read_config() {
   SERVER_URL=""
   DEVICE_TOKEN=""
   
-  if [ -f "$CONFIG_FILE" ]; then
-    # 尝试读取服务器地址
-    local url_line=$(grep -oP 'string name="server_url">\K[^<]+' "$CONFIG_FILE" 2>/dev/null)
+  # 优先读取 DE 路径（createDeviceProtectedStorageContext）
+  if [ -f "$DE_CONFIG_FILE" ]; then
+    local url_line=$(grep -oP 'string name="server_url">\K[^<]+' "$DE_CONFIG_FILE" 2>/dev/null)
     [ -n "$url_line" ] && SERVER_URL="$url_line"
     
-    # 尝试读取设备令牌
-    local token_line=$(grep -oP 'string name="device_token">\K[^<]+' "$CONFIG_FILE" 2>/dev/null)
+    local token_line=$(grep -oP 'string name="device_token">\K[^<]+' "$DE_CONFIG_FILE" 2>/dev/null)
     [ -n "$token_line" ] && DEVICE_TOKEN="$token_line"
+  fi
+  
+  # DE 没读到，尝试 CE 路径（首次迁移前可能有旧数据）
+  if [ -z "$SERVER_URL" ] || [ -z "$DEVICE_TOKEN" ]; then
+    if [ -f "$CONFIG_FILE" ]; then
+      local url_line=$(grep -oP 'string name="server_url">\K[^<]+' "$CONFIG_FILE" 2>/dev/null)
+      [ -n "$url_line" ] && SERVER_URL="$url_line"
+      
+      local token_line=$(grep -oP 'string name="device_token">\K[^<]+' "$CONFIG_FILE" 2>/dev/null)
+      [ -n "$token_line" ] && DEVICE_TOKEN="$token_line"
+    fi
   fi
 }
 
