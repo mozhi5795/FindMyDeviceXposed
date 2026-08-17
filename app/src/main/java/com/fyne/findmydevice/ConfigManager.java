@@ -38,32 +38,37 @@ public class ConfigManager {
     public static SharedPreferences getPreferences(Context context) {
         if (prefs == null) {
             // 使用 DE（设备级加密）存储，解锁前后均可读写
-            // 确保开机未解锁时服务也能读取配置（服务器地址、设备令牌）
+            // 确保开机未解锁时服务也能读取配置
             Context deContext = context.createDeviceProtectedStorageContext();
             prefs = deContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-
-            // 首次切换到 DE 时，从 CE（旧存储）迁移已有数据
-            if (!prefs.getBoolean("de_migrated", false)) {
-                SharedPreferences cePrefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-                if (cePrefs.getAll().size() > 0) {
-                    SharedPreferences.Editor editor = prefs.edit();
-                    for (Map.Entry<String, ?> entry : cePrefs.getAll().entrySet()) {
-                        String key = entry.getKey();
-                        Object val = entry.getValue();
-                        if (val instanceof String) editor.putString(key, (String) val);
-                        else if (val instanceof Boolean) editor.putBoolean(key, (Boolean) val);
-                        else if (val instanceof Long) editor.putLong(key, (Long) val);
-                        else if (val instanceof Integer) editor.putInt(key, (Integer) val);
-                        else if (val instanceof Float) editor.putFloat(key, (Float) val);
-                    }
-                    editor.putBoolean("de_migrated", true);
-                    editor.apply();
-                } else {
-                    prefs.edit().putBoolean("de_migrated", true).apply();
-                }
-            }
         }
         return prefs;
+    }
+
+    /**
+     * 将 CE 存储的旧配置迁移到 DE 存储。
+     * 必须在用户解锁后调用（此时 CE 存储才可读）。
+     * 由 MainActivity.onResume() 在开机首次打开配置页时自动调用。
+     */
+    public static void migrateFromCe(Context context) {
+        SharedPreferences dePrefs = getPreferences(context);
+        if (dePrefs.getBoolean("de_migrated", false)) return; // 已迁移过了
+
+        SharedPreferences cePrefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        if (cePrefs.getAll().isEmpty()) return; // CE 无数据（尚未解锁或新安装）
+
+        SharedPreferences.Editor editor = dePrefs.edit();
+        for (Map.Entry<String, ?> entry : cePrefs.getAll().entrySet()) {
+            String key = entry.getKey();
+            Object val = entry.getValue();
+            if (val instanceof String) editor.putString(key, (String) val);
+            else if (val instanceof Boolean) editor.putBoolean(key, (Boolean) val);
+            else if (val instanceof Long) editor.putLong(key, (Long) val);
+            else if (val instanceof Integer) editor.putInt(key, (Integer) val);
+            else if (val instanceof Float) editor.putFloat(key, (Float) val);
+        }
+        editor.putBoolean("de_migrated", true);
+        editor.apply();
     }
 
     public static void setBootStartTime(Context context, long time) {

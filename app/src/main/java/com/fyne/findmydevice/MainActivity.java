@@ -274,7 +274,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         updateDeviceAdminStatus();
-        // 从系统设置返回时，如果已授权权限，自动启动服务
+
+        // 解锁后：将 CE 存储的旧配置迁移到 DE 存储（确保下次开机未解锁时也能读）
+        ConfigManager.migrateFromCe(this);
+
+        // 从系统设置返回时，如果已授权权限，自动重启服务
+        // 重启确保用上 DE 存储的最新配置
         if (prefs.getBoolean(ConfigManager.KEY_BOOT_START, true)
                 && hasLocationPermission()
                 && chkBootStart != null && chkBootStart.isChecked()) {
