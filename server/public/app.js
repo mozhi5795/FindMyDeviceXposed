@@ -141,7 +141,7 @@ function loadDeviceDetail(token) {
                 + '<div>设备标识: <code style="font-size:11px;color:#2196F3">' + token + '</code></div>'
                 + '<div>型号: ' + (info.model || '未知') + '</div>'
                 + '<div>最后位置: ' + (info.lastLat ? info.lastLat.toFixed(6) + ', ' + info.lastLng.toFixed(6) : '未知') + '</div>'
-                + '<div>精度: ' + (info.lastAccuracy ? info.lastAccuracy + '米' : '未知') + '</div>'
+                + '<div>精度: ' + (info.lastAccuracy ? info.lastAccuracy.toFixed(1) + '米' : '未知') + '</div>'
                 + '<div>定位源: ' + (info.lastProvider || '未知') + '</div>'
                 + '<div>电量: ' + (info.lastBattery > 0 ? info.lastBattery + '%' : '未知') + '</div>'
                 + '<div>首次上报: ' + fmtTime(info.firstSeen) + '</div>'
@@ -175,7 +175,7 @@ function updateMarker(data) {
             className: '', iconSize: [32, 32], iconAnchor: [16, 16]
         });
         var m = L.marker(latlng, { icon: icon }).addTo(MAP);
-        m.bindPopup('<b>' + (data.model || data.token.substring(0, 10)) + '</b><br>精度: ' + (data.accuracy ? data.accuracy + '米' : '未知') + '<br>电量: ' + (data.battery > 0 ? data.battery + '%' : '未知'));
+        m.bindPopup('<b>' + (data.model || data.token.substring(0, 10)) + '</b><br>精度: ' + (data.accuracy ? data.accuracy.toFixed(1) + '米' : '未知') + '<br>电量: ' + (data.battery > 0 ? data.battery + '%' : '未知'));
         DEVICE_MARKERS[data.token] = m;
     }
     if (data.token === SELECTED_TOKEN && MAP.getZoom() < 14) {
