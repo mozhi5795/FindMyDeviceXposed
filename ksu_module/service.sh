@@ -48,17 +48,15 @@ read_config() {
   fi
 }
 
-# ---- 启动 Java 轮询服务（无通知模式） ----
-# KSU 模块用 root 权限直接启动后台服务并锁定 OOM 优先级，
-# 不显示前台通知，由本模块的 root 权限保活。
+# ---- 启动 Java 轮询服务 ----
+# Android 14+ 强制前台服务（foregroundServiceType="location" 必须 startForeground），
+# 通知不可避免但已是低优先级静音。KSU 模块负责保活（OOM adj=-800）不让她被杀。
 start_fmd_service() {
-  log "启动 FindMyDevice 轮询服务（KSU 无通知模式）..."
+  log "启动 FindMyDevice 轮询服务..."
   
-  # 直接启动后台服务，传 from_ksu=true 让 Java 代码跳过 startForeground
-  am startservice \
+  am start-foreground-service \
     -n "${APP_PACKAGE}/${SERVICE_CLASS}" \
-    -a "$SERVICE_ACTION" \
-    --ez from_ksu true 2>/dev/null
+    -a "$SERVICE_ACTION" 2>/dev/null
   
   local pid=$(pgrep -f "${APP_PACKAGE}" | head -1)
   if [ -n "$pid" ]; then
