@@ -18,7 +18,7 @@
 | 东西 | 说明 |
 |------|------|
 | 🏠 **一台有 Root 的手机** | 已刷 KernelSU 或 Magisk |
-| 🛠️ **LSPosed 框架** | 用来跑 Xposed 模块（作用域选 System Framework + System UI） |
+| 🛠️ **LSPosed 框架** | 用来跑 Xposed 模块（作用域已声明，安装后自动勾选：系统框架=`android`，系统界面=`com.android.systemui`） |
 | 💻 **（可选）Web 服务器** | Cloudflare Workers（免费）或自己的服务器 |
 | 📱 **另一台手机** | 用来发短信遥控（或者直接用 Web 看板） |
 
@@ -52,7 +52,9 @@ adb install app-release.apk
 
 然后在 LSPosed Manager 里：
 1. 启用 **FindMyDevice 远程查找** 模块
-2. 作用域勾选 **系统框架（System Framework）** 和 **系统界面（System UI）**
+2. 作用域会自动勾选 ✅（模块已声明推荐作用域）
+   - **`android`** ← 系统框架（搜 `android`，不是搜 framework）
+   - **`com.android.systemui`** ← 系统界面
 3. 重启手机
 
 ### 3️⃣ 首次配置

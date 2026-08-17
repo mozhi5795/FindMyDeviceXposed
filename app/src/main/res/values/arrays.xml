@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LSPosed 推荐作用域：安装后自动勾选 -->
+    <!-- android = 系统框架(System Framework)，com.android.systemui = 系统界面(System UI) -->
+    <string-array name="xposedscope">
+        <item>android</item>
+        <item>com.android.systemui</item>
+    </string-array>
+</resources>

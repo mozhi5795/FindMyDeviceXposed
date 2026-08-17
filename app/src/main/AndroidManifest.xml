@@ -36,6 +36,10 @@
         <meta-data
             android:name="xposedminversion"
             android:value="82+" />
+        <!-- LSPosed 推荐作用域：安装后自动勾选 系统框架(android) + 系统界面(com.android.systemui) -->
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposedscope" />
 
         <!-- 主设置界面 -->
         <activity
