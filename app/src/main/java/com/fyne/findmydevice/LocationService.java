@@ -69,6 +69,9 @@ public class LocationService extends Service {
 
     private boolean isPolling = false;
 
+    // KSU 模式：由 root 启动，无通知轮询，需要定位时临时进入前台
+    private boolean isKsuMode = false;
+
     private final IBinder binder = new LocalBinder();
 
     public class LocalBinder extends Binder {
@@ -98,11 +101,13 @@ public class LocationService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         // 检查是否由 KSU 模块启动（root 保活，不显示通知）
-        boolean fromKsu = intent != null && intent.getBooleanExtra(EXTRA_FROM_KSU, false);
+        if (intent != null && intent.getBooleanExtra(EXTRA_FROM_KSU, false)) {
+            isKsuMode = true;
+        }
 
         if (intent == null || intent.getAction() == null) {
-            Log.i(TAG, "服务重启" + (fromKsu ? "（KSU 保活模式）" : ""));
-            if (!fromKsu && !tryStartForeground()) return START_NOT_STICKY;
+            Log.i(TAG, "服务重启" + (isKsuMode ? "（KSU 保活模式）" : ""));
+            if (!isKsuMode && !tryStartForeground()) return START_NOT_STICKY;
             if (!isPolling) {
                 startPolling();
             }
@@ -110,17 +115,17 @@ public class LocationService extends Service {
         }
 
         String action = intent.getAction();
-        Log.i(TAG, "onStartCommand: " + action + (fromKsu ? " (KSU)" : ""));
+        Log.i(TAG, "onStartCommand: " + action + (isKsuMode ? " (KSU)" : ""));
 
         switch (action) {
             case ACTION_GET_LOCATION:
                 String callback = intent.getStringExtra(EXTRA_CALLBACK_NUMBER);
-                if (!fromKsu && !tryStartForeground()) return START_NOT_STICKY;
+                if (!isKsuMode && !tryStartForeground()) return START_NOT_STICKY;
                 requestSingleLocation(callback);
                 break;
 
             case ACTION_START_POLLING:
-                if (!fromKsu && !tryStartForeground()) return START_NOT_STICKY;
+                if (!isKsuMode && !tryStartForeground()) return START_NOT_STICKY;
                 if (!isPolling) {
                     startPolling();
                 }
@@ -220,6 +225,10 @@ public class LocationService extends Service {
     }
 
     private void requestFreshLocation() {
+        // KSU 模式：需要定位时临时进入前台（Android 14+ 后台无法获取位置）
+        if (isKsuMode) {
+            tryStartForeground();
+        }
         try {
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER,
@@ -274,6 +283,11 @@ public class LocationService extends Service {
 
         CommandProcessor.sendSms(this, pendingCallbackNumber, message);
         pendingCallbackNumber = null;
+        
+        // KSU 模式：定位完成，切回后台（通知消失）
+        if (isKsuMode) {
+            stopForeground(true);
+        }
     }
 
     private void sendLocationFailed(String reason) {
@@ -286,6 +300,11 @@ public class LocationService extends Service {
             CommandProcessor.sendSms(this, pendingCallbackNumber,
                     "[FindMyDevice] 定位失败: " + reason);
             pendingCallbackNumber = null;
+        }
+
+        // KSU 模式：定位失败也切回后台
+        if (isKsuMode) {
+            stopForeground(true);
         }
     }
 
