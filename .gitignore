@@ -10,6 +10,9 @@ local.properties
 server/node_modules/
 server/.env
 
+# Build artifacts
+*.zip
+
 # OS
 .DS_Store
 Thumbs.db

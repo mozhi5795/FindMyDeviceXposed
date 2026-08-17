@@ -190,13 +190,31 @@ if ($LASTEXITCODE -eq 0) {
     $apkPath = Join-Path $ScriptDir $apkDir
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Green
-    Write-Host "  ✓ 构建成功!" -ForegroundColor Green
+    Write-Host "  ✓ APK 构建成功!" -ForegroundColor Green
     if (Test-Path $apkPath) {
         $apks = Get-ChildItem $apkPath -Filter "*.apk"
         foreach ($apk in $apks) {
-            Write-Host "  输出: $($apk.FullName)" -ForegroundColor Green
+            Write-Host "  APK: $($apk.FullName)" -ForegroundColor Green
         }
     }
+
+    # ---- 打包 KSU 保活模块 ----
+    $ksuSource = Join-Path $ScriptDir "ksu_module"
+    $ksuZip = Join-Path $ScriptDir "FindMyDevice-KSU-v1.0.zip"
+    if (Test-Path $ksuSource) {
+        Write-Host ""
+        Write-Host "--- 打包 KSU 保活模块 ---" -ForegroundColor Cyan
+        if (Test-Path $ksuZip) { Remove-Item $ksuZip -Force }
+        $tmp = Join-Path $env:TEMP "fmd_ksu_zip"
+        if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+        Copy-Item "$ksuSource\module.prop" "$tmp\"
+        Copy-Item "$ksuSource\service.sh" "$tmp\"
+        Compress-Archive -Path "$tmp\*" -DestinationPath $ksuZip -Force
+        Remove-Item $tmp -Recurse -Force
+        Write-Host "  KSU: $ksuZip" -ForegroundColor Green
+    }
+
     Write-Host "========================================" -ForegroundColor Green
 } else {
     Write-Host ""
